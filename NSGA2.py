@@ -67,7 +67,7 @@ class MixedVarsInit(ElementwiseProblem):
 
 #GA Settings
 p_size = 200
-g_size = 100
+g_size = 50
 
 problem = MixedVarsInit()
 
