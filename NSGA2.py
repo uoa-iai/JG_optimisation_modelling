@@ -11,6 +11,14 @@ import pickle
 
 from pymoo.core.problem import Problem
 
+#Algorithm
+from pymoo.algorithms.moo.nsga2 import NSGA2
+
+#Mixed variable 
+from pymoo.core.problem import ElementwiseProblem
+from pymoo.core.variable import Real, Integer
+from pymoo.core.mixed import MixedVariableMating, MixedVariableSampling, MixedVariableDuplicateElimination
+
 #read files
 #Load PDF for latency
 kdefile = open('kdePickle','rb')
@@ -27,15 +35,6 @@ pbadFile.close()
 
 params = (lat_kde,lat_lan,p_bad)
 
-class ProblemWrapper(Problem):
-    def _evaluate(self, designs, out, *args, **kwargs):
-
-        res = []
-        for design in designs:
-            res.append(obj_wrapper(design, *params))
-        out['F'] = np.array(res)
-
-
 #CONSTRAINTS
 bcrit = 3
 wp = 200
@@ -44,17 +43,37 @@ buf_max = wp
 fact_min = 0
 fact_max = 1
 
+class MixedVarsInit(ElementwiseProblem):
+    
+    def __init__(self, **kwargs):
+        
+        variables = dict()
+        
+        #Declare the variable bounding conditions
+        variables[f"x01"] = Integer(bounds=(buf_min, buf_max))
+        variables[f"x02"] = Real(bounds=(fact_min, fact_max))
+        variables[f"x03"] = Real(bounds=(fact_min, fact_max))
+
+        super().__init__(vars=variables, n_obj=4, **kwargs)
+        
+    
+    def _evaluate(self, designs, out, *args, **kwargs):
+
+        #Declare the variables using the bounds above
+        designs = np.array([designs[f"x01"],designs[f"x02"],designs[f"x03"]])
+        res = []
+        res.append(obj_wrapper(designs, *params))
+        out['F'] = np.array(res)
+
 #GA Settings
 p_size = 200
-g_size = 50
+g_size = 100
 
-problem = ProblemWrapper(n_var=3, n_obj=4, xl=[buf_min,fact_min,fact_min], xu=[buf_max,fact_max,fact_max])
+problem = MixedVarsInit()
 
-#Algorithm
-from pymoo.algorithms.moo.nsga2 import NSGA2
-
-#do MILP things here
-algorithm = NSGA2(pop_size=p_size)
+#Declare the algorithm
+algorithm = NSGA2(pop_size=p_size,sampling=MixedVariableSampling(),mating=MixedVariableMating(eliminate_duplicates=MixedVariableDuplicateElimination()),
+                  eliminate_duplicates=MixedVariableDuplicateElimination(),)
 
 stop_criteria = ('n_gen',g_size)
 

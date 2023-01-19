@@ -59,7 +59,7 @@ def obj_funct(variables, *params):
     V_ow = V_max
     bcrit = 3
     #Loss rate
-    pRate = 0.05
+    pRate = 0.3
     p_bad[0] = pRate
 
     #Weights
