@@ -37,23 +37,8 @@ if __name__ == "__main__":
     buf_max = wp
     fact_min = 0
     fact_max = 1
-
-    #Decision variables
-    # buf = 10
-    # a_lat = 0.0001974
-    # a_buf = 0.0007305
-
-    #Optimised by GA
-    # buf = 5
-    # a_lat = 0.12664153292974867
-    # a_buf = 0.0243406027410771
     
-    #Optimised by GA with aggregation
-    # buf = 5
-    # a_lat = 0.007197591153989442
-    # a_buf = 0.05322556233229219
-    
-    #Optimised using NSGA2 with aggregation
+    #Optimised using NSGA2 with aggregation - OM-X
     buf = 9
     a_lat = 0.44349102025504017
     a_buf = 0.3513430414811513
@@ -74,10 +59,13 @@ if __name__ == "__main__":
     vel_comp = []
     acc_ideal = []
     acc_comp = []
+    
+    #id for indexing multiple latencies
+    lat_id = [0,1,2,3]
 
     for i in range(0,sim_num):
         print(str(i)+"/"+str(sim_num))
-        cost_list= obj_funct(variables,*params,sim=True)
+        cost_list = obj_funct(variables,*params,sim=True)
         speed_list.append(cost_list[0])
         smooth_list.append(cost_list[1])
         wait_list.append(cost_list[2])
@@ -86,57 +74,117 @@ if __name__ == "__main__":
         vel_comp = cost_list[5]
         acc_ideal = cost_list[6]
         acc_comp = cost_list[7]
-
-    fix, [(ax1, ax2),(ax3, ax4),(ax5,ax6),(ax7,ax8)] = plt.subplots(4, 2)
-    ax1.hist(speed_list, bins=100)
-    ax1.set_title('Speed Cost Distribution Over 500 Simulations')
-    ax1.set(xlabel='Speed Cost Value', ylabel='Frequency (samples)')
-    ax2.hist(smooth_list, bins=100)
-    ax2.set_title('Smooth Cost Distribution Over 500 Simulations')
-    ax2.set(xlabel='Smooth Cost Value', ylabel='Frequency (samples)')
-    ax3.hist(wait_list, bins=100)
-    ax3.set_title('Wait Cost Distribution Over 500 Simulations')
-    ax3.set(xlabel='Wait Cost Value', ylabel='Frequency (samples)')
-    ax4.hist(count_list, bins=100)
-    ax4.set_title('Wait Count Cost Distribution Over 500 Simulations')
-    ax4.set(xlabel='Wait Count Cost Value', ylabel='Frequency (samples)')
-    ax5.plot(range(len(vel_ideal)),vel_ideal)
-    ax6.plot(range(len(vel_comp)),vel_comp)
-    ax7.plot(range(len(acc_ideal)),acc_ideal)
-    ax8.plot(range(len(acc_comp)),acc_comp)
-    fix.tight_layout()
+    
+    speed_costs     = [[],[],[],[]]
+    smooth_costs    = [[],[],[],[]]
+    wait_costs      = [[],[],[],[]]
+    count_costs     = [[],[],[],[]]
+    vel_list        = [[],[],[],[],[]]
+    acc_list        = [[],[],[],[],[]]
+    
+    for data in speed_list:
+        speed_costs[0].append(data[0])
+        speed_costs[1].append(data[1])
+        speed_costs[2].append(data[2])
+        speed_costs[3].append(data[3])
+        
+    for data in smooth_list:
+        smooth_costs[0].append(data[0])
+        smooth_costs[1].append(data[1])
+        smooth_costs[2].append(data[2])
+        smooth_costs[3].append(data[3])
+    
+    for data in wait_list:
+        wait_costs[0].append(data[0])
+        wait_costs[1].append(data[1])
+        wait_costs[2].append(data[2])
+        wait_costs[3].append(data[3])
+        
+    for data in count_list:
+        count_costs[0].append(data[0])
+        count_costs[1].append(data[1])
+        count_costs[2].append(data[2])
+        count_costs[3].append(data[3])
+        
+    for data in vel_comp:
+        vel_list[0].append(vel_ideal[0])
+        vel_list[1].append(data[0])
+        vel_list[2].append(data[1])
+        vel_list[3].append(data[2])
+        vel_list[4].append(data[3])
+        
+    for data in acc_comp:
+        acc_list[0].append(acc_ideal[0])
+        acc_list[1].append(data[0])
+        acc_list[2].append(data[1])
+        acc_list[3].append(data[2])
+        acc_list[4].append(data[3])
+                 
+        
+        
+    fig, ax = plt.subplots()
+    ax.set_title('Speed Cost Distribution Over 500 Simulations')
+    ax.set(xlabel='Speed Cost Value', ylabel='Frequency (samples)')
+    for item in speed_costs:
+        ax.hist(item, bins=100)
+    plt.show()
+    
+    fig, ax = plt.subplots()
+    ax.set_title('Smooth Cost Distribution Over 500 Simulations')
+    ax.set(xlabel='Smooth Cost Value', ylabel='Frequency (samples)')
+    for item in smooth_costs:
+        ax.hist(item, bins=100)
+    plt.show()
+    
+    fig, ax = plt.subplots()
+    ax.set_title('Wait Cost Distribution Over 500 Simulations')
+    ax.set(xlabel='Wait Cost Value', ylabel='Frequency (samples)')
+    for item in wait_costs:
+        ax.hist(item, bins=100)
+    plt.show()
+    
+    fig, ax = plt.subplots()
+    ax.set_title('Count Cost Distribution Over 500 Simulations')
+    ax.set(xlabel='Count Cost Value', ylabel='Frequency (samples)')
+    for item in count_costs:
+        ax.plot(item)
+    plt.show()
+    
+    fig, ax = plt.subplots()
+    ax.set_title('Velocity Over Distance')
+    ax.set(xlabel='Waypoints', ylabel='Velocity (m/s)')
+    for item in vel_list:
+        ax.plot(range(len(item)),item)
+    plt.show()
+    
+    fig, ax = plt.subplots()
+    ax.set_title('Acceleration Over Distance')
+    ax.set(xlabel='Waypoints', ylabel='Acceleration (m/s^2)')
+    for item in acc_list:
+        ax.plot(range(len(item)),item)
     plt.show()
 
-############################################
+    # fix, [(ax1, ax2),(ax3, ax4),(ax5,ax6),(ax7,ax8)] = plt.subplots(4, 2)
+    # ax1.hist(speed_list, bins=100)
+    # ax1.set_title('Speed Cost Distribution Over 500 Simulations')
+    # ax1.set(xlabel='Speed Cost Value', ylabel='Frequency (samples)')
+    # ax2.hist(smooth_list, bins=100)
+    # ax2.set_title('Smooth Cost Distribution Over 500 Simulations')
+    # ax2.set(xlabel='Smooth Cost Value', ylabel='Frequency (samples)')
+    # ax3.hist(wait_list, bins=100)
+    # ax3.set_title('Wait Cost Distribution Over 500 Simulations')
+    # ax3.set(xlabel='Wait Cost Value', ylabel='Frequency (samples)')
+    # ax4.hist(count_list, bins=100)
+    # ax4.set_title('Wait Count Cost Distribution Over 500 Simulations')
+    # ax4.set(xlabel='Wait Count Cost Value', ylabel='Frequency (samples)')
+    # ax5.plot(range(len(vel_ideal)),vel_ideal)
+    # ax6.plot(range(len(vel_comp)),vel_comp)
+    # ax7.plot(range(len(acc_ideal)),acc_ideal)
+    # ax8.plot(range(len(acc_comp)),acc_comp)
+    # fix.tight_layout()
+    # plt.show()
 
-# #Add to list
-# speed_list.append(Z_Speed)
-# smooth_list.append(Z_Smooth)
-# wait_list.append(Z_Wait)
-# count_list.append(Z_Count)
-# cost_list.append(Z_System)
-
-# print("ITERATION:   "+str(i)+"  SPEED: "+str(Z_Speed)+"  SMOOTH: "+str(Z_Smooth)+"  Wait: "+str(Z_Wait)+"  Count: "+str(Z_Count))
-# print("TOTAL COST: "+str(Z_System))
-
-# # Store results
-# # Distribution of speed
-# speedFile = open('speedPickle','wb')
-# pickle.dump(speed_list,speedFile)
-# speedFile.close()
-# #Distribution of smooth
-# smoothFile = open('smoothPickle','wb')
-# pickle.dump(smooth_list,smoothFile)
-# smoothFile.close()
-# #Distribution of wait
-# waitFile = open('waitPickle','wb')
-# pickle.dump(wait_list,waitFile)
-# waitFile.close()
-# #Distribution of count
-# countFile = open('countPickle','wb')
-# pickle.dump(count_list,countFile)
-# countFile.close()
-# #Distribution of total cost
-# costFile = open('costPickle','wb')
-# pickle.dump(cost_list,costFile)
-# costFile.close()
+###
+#TODO:
+#Put 4 latency charts on the same plot
+###

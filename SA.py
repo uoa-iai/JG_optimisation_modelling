@@ -82,7 +82,7 @@ def obj_funct(variables, *params, sim = False):
     #LIVE
     wp = 200
     I_recv = 200
-    Lavg = 100
+    L_list = [10,50,100,300]
     LANavg = 8
     Lmax = 500
     d = 0.05
@@ -95,153 +95,157 @@ def obj_funct(variables, *params, sim = False):
     pRate = 0.05
     p_bad[0] = pRate
     
-    #Weights
-    a_speed = 1
-    a_smooth = 1
-    a_wait = 1
-    a_count = 5000
-
-    #wait cooldown
-    rt_cd = buf
-    tgrace = 0
-    rt_list = [0]*wp
-
-    #I_snd history
-    I_hist = []
-
-    #Ploss status array
-    pLoss = [0,1]
-
-    #List of costs within tests
-    zspeed = [0]*wp
-    zsmooth = [0]*wp
-    zwait = [0]*wp
-    zcount = [0]*wp
-
-    #Simulation results
-    t_oper = [0]*wp
-    t_ideal = [0]*wp
-    t_stop = [0]*wp
-    
-    #Initialising Velocity and Acceleration Charts vs distance
-    if sim:
-        vel_ideal = [0]*wp
-        vel_comp = [0]*wp
-        acc_ideal = [0]*wp
-        acc_comp = [0]*wp
-
-    #Fill rt_list
-    for n in range(0,wp):
-        #Sample initial packet loss 
-        rt_count = 0
-        pRate = p_bad[rt_count]
-        pL = np.random.choice(pLoss,p=[1-pRate,pRate])
-        while pL == 1: #Retransmit until successful
-            if(rt_count < len(p_bad)):
-                pRate = p_bad[rt_count]
-            else:
-                pRate = 0
-            pL = np.random.choice(pLoss,p=[1-pRate,pRate])
-            rt_count += 1
-            
-        rt_list[n] = rt_count
-        # if rt_count > 0:
-        #     print(str(rt_count)+"  RETRANSMISSIONS FOR WAYPOINT "+str(n))
-
-
-    #For each waypoint
-    for n in range(0,wp):
-        #Sample latency offset
-        Loff = lat_kde.sample(1)[0][0]
-        LANoff = lat_lan.sample(1)[0][0]
-        Lsum = (Loff + Lavg + LANoff + LANavg)
-
-        b_loss = 0
-        b_iter = 1
-        #Find position of next lost packet
-        b_stop = min(n+int(buf),wp)
-        for m in range(n+1,b_stop):
-            if rt_list[n]-(buf-b_iter) > 0:
-                b_loss = b_iter
-                break
-            b_iter += 1
-
-
-        #Calcualte Scaling Factor
-        klat = a_lat*(1-((Lmax-Lsum)/Lmax))
-        kbuf = a_buf*(1-((buf-b_loss)/buf))
-
-        #Scale velocity
-        V_cw = V_ow - V_max*klat - V_max*kbuf
-        V_cw = max(V_cw,V_min)
-        V_cw = min(V_cw,V_max)
-
-        #Calculate the new consumption period - originally in seconds -> convert to ms
-        I_snd = (d/V_cw)*1000
-
-        #Calculate error
-        zspeed[n] = abs(V_ow - V_cw)
-        if n > 0:
-            zsmooth[n] = abs(zspeed[n]-zspeed[n-1])
-
-        #Generate queue
-        if n > buf-bcrit:
-            I_hist.pop(0)
-            I_hist.append(I_snd)
-        else:
-            I_hist.append(I_snd)
-            
-        #Use retransmission to check for wait time
-        if n>buf:
-            zwait[n] = 2*Lsum+(rt_list[n]*(sum(I_hist)/len(I_hist)))-sum(I_hist)-tgrace
-            #calculate tgrace for next iteration
-            zwait[n] = max(zwait[n],0)
-            tgrace += zwait[n]
-        else:
-            zwait[n] = I_snd*rt_count
-            zwait[n] = max(zwait[n],0)
-
-        #calculate zcount
-        if zwait[n] > 0 and rt_cd <= 0:
-            rt_cd = buf
-            zcount[n] = 1
-        else:
-            rt_cd -= 1
-            zcount[n] - 0
-        
-        #Calculate Simulation Results
-        t_ideal[n] = d/V_ow*1000
-        t_oper[n] = d/V_cw*1000
-        t_stop[n] = zwait[n]
-        
-        #Store value for charts
-        if sim:
-            vel_ideal[n] = V_ow
-            vel_comp[n] = V_cw
-            if n > 0:
-                acc_ideal[n] = V_ow - vel_ideal[n-1]
-                acc_comp[n] = V_cw - vel_comp[n-1]
-            else:
-                acc_ideal[n] = V_ow
-                acc_comp[n] = V_cw
-
-
+    #Initialise lists
     #aggregate costs
-    Z_Speed = sum(zspeed)*1000 #convert to ms scale
-    Z_Smooth = sum(zsmooth)*1000 # convert to ms scale
-    Z_Wait = sum(zwait)+buf*I_recv
-    Z_Count = sum(zcount)
-    #calculate weighted cost
-    Z_System = a_speed*Z_Speed+a_smooth*Z_Smooth+a_wait*Z_Wait+a_count*Z_Count
-    # print("TOTAL: "+str(Z_System)+ " SPD: "+str(Z_Speed)+" SMT: "+str(Z_Smooth)+" WAT: "+str(Z_Wait)+" CNT: "+str(Z_Count))
-    # print("                       IDEAL: "+str(sum(t_ideal)/1000)+"  OPER: "+str(sum(t_oper)/1000) + "  STOP: "+str(sum(t_stop)/1000))
-    # print("BUF: " + str(buf))
+    Z_Speed = [] #convert to ms scale
+    Z_Smooth = []  # convert to ms scale
+    Z_Wait = []
+    Z_Count = []
+    vel_ilist = []
+    vel_clist = []
+    acc_ilist = []
+    acc_clist = []
     
-    if buf > wp:
-        Z_System *= 100000
-    
+    #Loop for multiple latencies
+    for Lavg in L_list:
+
+        #wait cooldown
+        rt_cd = buf
+        tgrace = 0
+        rt_list = [0]*wp
+
+        #I_snd history
+        I_hist = []
+
+        #Ploss status array
+        pLoss = [0,1]
+
+        #List of costs within tests
+        zspeed = [0]*wp
+        zsmooth = [0]*wp
+        zwait = [0]*wp
+        zcount = [0]*wp
+
+        #Simulation results
+        t_oper = [0]*wp
+        t_ideal = [0]*wp
+        t_stop = [0]*wp
+        
+        #Initialising Velocity and Acceleration Charts vs distance
+        if sim:
+            vel_ideal = [0]*wp
+            vel_comp = [0]*wp
+            acc_ideal = [0]*wp
+            acc_comp = [0]*wp
+
+        #Fill rt_list
+        for n in range(0,wp):
+            #Sample initial packet loss 
+            rt_count = 0
+            pRate = p_bad[rt_count]
+            pL = np.random.choice(pLoss,p=[1-pRate,pRate])
+            while pL == 1: #Retransmit until successful
+                if(rt_count < len(p_bad)):
+                    pRate = p_bad[rt_count]
+                else:
+                    pRate = 0
+                pL = np.random.choice(pLoss,p=[1-pRate,pRate])
+                rt_count += 1
+                
+            rt_list[n] = rt_count
+            # if rt_count > 0:
+            #     print(str(rt_count)+"  RETRANSMISSIONS FOR WAYPOINT "+str(n))
+
+
+        #For each waypoint
+        for n in range(0,wp):
+            #Sample latency offset
+            Loff = lat_kde.sample(1)[0][0]
+            LANoff = lat_lan.sample(1)[0][0]
+            Lsum = (Loff + Lavg + LANoff + LANavg)
+
+            b_loss = 0
+            b_iter = 1
+            #Find position of next lost packet
+            b_stop = min(n+int(buf),wp)
+            for m in range(n+1,b_stop):
+                if rt_list[n]-(buf-b_iter) > 0:
+                    b_loss = b_iter
+                    break
+                b_iter += 1
+
+
+            #Calcualte Scaling Factor
+            klat = a_lat*(1-((Lmax-Lsum)/Lmax))
+            kbuf = a_buf*(1-((buf-b_loss)/buf))
+
+            #Scale velocity
+            V_cw = V_ow - V_max*klat - V_max*kbuf
+            V_cw = max(V_cw,V_min)
+            V_cw = min(V_cw,V_max)
+
+            #Calculate the new consumption period - originally in seconds -> convert to ms
+            I_snd = (d/V_cw)*1000
+
+            #Calculate error
+            zspeed[n] = abs(V_ow - V_cw)
+            if n > 0:
+                zsmooth[n] = abs(zspeed[n]-zspeed[n-1])
+
+            #Generate queue
+            if n > buf-bcrit:
+                I_hist.pop(0)
+                I_hist.append(I_snd)
+            else:
+                I_hist.append(I_snd)
+                
+            #Use retransmission to check for wait time
+            if n>buf:
+                zwait[n] = 2*Lsum+(rt_list[n]*(sum(I_hist)/len(I_hist)))-sum(I_hist)-tgrace
+                #calculate tgrace for next iteration
+                zwait[n] = max(zwait[n],0)
+                tgrace += zwait[n]
+            else:
+                zwait[n] = I_snd*rt_count
+                zwait[n] = max(zwait[n],0)
+
+            #calculate zcount
+            if zwait[n] > 0 and rt_cd <= 0:
+                rt_cd = buf
+                zcount[n] = 1
+            else:
+                rt_cd -= 1
+                zcount[n] - 0
+            
+            #Calculate Simulation Results
+            t_ideal[n] = d/V_ow*1000
+            t_oper[n] = d/V_cw*1000
+            t_stop[n] = zwait[n]
+            
+            #Store value for charts
+            if sim:
+                vel_ideal[n] = V_ow
+                vel_comp[n] = V_cw
+                if n > 0:
+                    acc_ideal[n] = V_ow - vel_ideal[n-1]
+                    acc_comp[n] = V_cw - vel_comp[n-1]
+                else:
+                    acc_ideal[n] = V_ow
+                    acc_comp[n] = V_cw
+
+
+        #aggregate costs
+        Z_Speed.append(sum(zspeed)*1000) #convert to ms scale
+        Z_Smooth.append(sum(zsmooth)*1000) # convert to ms scale
+        Z_Wait.append(sum(zwait)+buf*I_recv)
+        Z_Count.append(sum(zcount))
+        vel_ilist.append(vel_ideal)
+        vel_clist.append(vel_comp)
+        acc_ilist.append(acc_ideal)
+        acc_clist.append(acc_comp)
+        
     if sim:
-        return([Z_Speed,Z_Smooth,Z_Wait,Z_Count,vel_ideal, vel_comp, acc_ideal, acc_comp])
+        return([Z_Speed,Z_Smooth,Z_Wait,Z_Count,vel_ilist, vel_clist, acc_ilist, acc_clist])
     else:
         return([Z_Speed,Z_Smooth,Z_Wait,Z_Count])
 
