@@ -36,7 +36,7 @@ pbadFile.close()
 params = (lat_kde,lat_lan,p_bad)
 
 #CONSTRAINTS
-bcrit = 3
+bcrit = 5
 wp = 200
 buf_min = bcrit+1
 buf_max = wp
@@ -67,7 +67,7 @@ class MixedVarsInit(ElementwiseProblem):
 
 #GA Settings
 p_size = 200
-g_size = 50
+g_size = 100
 
 problem = MixedVarsInit()
 

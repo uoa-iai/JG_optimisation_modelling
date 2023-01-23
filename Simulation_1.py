@@ -28,7 +28,7 @@ if __name__ == "__main__":
     pbadFile.close()
 
     #CONSTANTS
-    sim_num = 10000
+    sim_num = 500
 
     #CONSTRAINTS
     wp = 200
@@ -39,9 +39,9 @@ if __name__ == "__main__":
     fact_max = 1
 
     #Decision variables
-    buf = 10
-    a_lat = 0.0001974
-    a_buf = 0.0007305
+    # buf = 10
+    # a_lat = 0.0001974
+    # a_buf = 0.0007305
 
     #Optimised by GA
     # buf = 5
@@ -54,9 +54,9 @@ if __name__ == "__main__":
     # a_buf = 0.05322556233229219
     
     #Optimised using NSGA2 with aggregation
-    buf = 27
-    a_lat = 0.002072
-    a_buf = 0.00001262
+    buf = 9
+    a_lat = 0.44349102025504017
+    a_buf = 0.3513430414811513
 
     #Random Guess
     # buf = 20
@@ -70,28 +70,40 @@ if __name__ == "__main__":
     smooth_list = []
     wait_list = []
     count_list = []
+    vel_ideal = []
+    vel_comp = []
+    acc_ideal = []
+    acc_comp = []
 
     for i in range(0,sim_num):
         print(str(i)+"/"+str(sim_num))
-        cost_list= obj_funct(variables,*params)
+        cost_list= obj_funct(variables,*params,sim=True)
         speed_list.append(cost_list[0])
         smooth_list.append(cost_list[1])
         wait_list.append(cost_list[2])
         count_list.append(cost_list[3])
+        vel_ideal = cost_list[4]
+        vel_comp = cost_list[5]
+        acc_ideal = cost_list[6]
+        acc_comp = cost_list[7]
 
-    fix, [(ax1, ax2),(ax3, ax4)] = plt.subplots(2, 2)
+    fix, [(ax1, ax2),(ax3, ax4),(ax5,ax6),(ax7,ax8)] = plt.subplots(4, 2)
     ax1.hist(speed_list, bins=100)
-    ax1.set_title('Speed Cost Distribution Over 10000 Simulations')
+    ax1.set_title('Speed Cost Distribution Over 500 Simulations')
     ax1.set(xlabel='Speed Cost Value', ylabel='Frequency (samples)')
     ax2.hist(smooth_list, bins=100)
-    ax2.set_title('Smooth Cost Distribution Over 10000 Simulations')
+    ax2.set_title('Smooth Cost Distribution Over 500 Simulations')
     ax2.set(xlabel='Smooth Cost Value', ylabel='Frequency (samples)')
     ax3.hist(wait_list, bins=100)
-    ax3.set_title('Wait Cost Distribution Over 10000 Simulations')
+    ax3.set_title('Wait Cost Distribution Over 500 Simulations')
     ax3.set(xlabel='Wait Cost Value', ylabel='Frequency (samples)')
     ax4.hist(count_list, bins=100)
-    ax4.set_title('Wait Count Cost Distribution Over 10000 Simulations')
+    ax4.set_title('Wait Count Cost Distribution Over 500 Simulations')
     ax4.set(xlabel='Wait Count Cost Value', ylabel='Frequency (samples)')
+    ax5.plot(range(len(vel_ideal)),vel_ideal)
+    ax6.plot(range(len(vel_comp)),vel_comp)
+    ax7.plot(range(len(acc_ideal)),acc_ideal)
+    ax8.plot(range(len(acc_comp)),acc_comp)
     fix.tight_layout()
     plt.show()
 

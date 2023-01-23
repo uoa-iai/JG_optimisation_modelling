@@ -42,26 +42,59 @@ def obj_wrapper(variables, *params):
 """
 A function that runs one iteration of the robot simulation
 """
-def obj_funct(variables, *params):
+def obj_funct(variables, *params, sim = False):
     lat_kde,lat_lan,p_bad = params
     buf, a_lat, a_buf = variables
     
 #CONSTANTS
+    #OM-X
+    # wp = 200
+    # I_recv = 10
+    # Lavg = 100
+    # LANavg = 8
+    # Lmax = 500
+    # d = 0.05
+    # #Assuming constant velocty
+    # V_min = 0.1
+    # V_max = 1
+    # V_ow = V_max
+    # bcrit = 5
+    # #Loss rate
+    # pRate = 0.05
+    # p_bad[0] = pRate
+
+    #TB3
+    # wp = 200
+    # I_recv = 200
+    # Lavg = 100
+    # LANavg = 8
+    # Lmax = 500
+    # d = 0.05
+    # #Assuming constant velocty
+    # V_min = 0.1
+    # V_max = 1
+    # V_ow = V_max
+    # bcrit = 5
+    # #Loss rate
+    # pRate = 0.05
+    # p_bad[0] = pRate
+
+    #LIVE
     wp = 200
-    I_recv = 15
+    I_recv = 200
     Lavg = 100
     LANavg = 8
-    Lmax = 2000
-    d = 0.1
+    Lmax = 500
+    d = 0.05
     #Assuming constant velocty
     V_min = 0.1
-    V_max = 0.26
+    V_max = 1
     V_ow = V_max
-    bcrit = 3
+    bcrit = 5
     #Loss rate
     pRate = 0.05
     p_bad[0] = pRate
-
+    
     #Weights
     a_speed = 1
     a_smooth = 1
@@ -89,6 +122,13 @@ def obj_funct(variables, *params):
     t_oper = [0]*wp
     t_ideal = [0]*wp
     t_stop = [0]*wp
+    
+    #Initialising Velocity and Acceleration Charts vs distance
+    if sim:
+        vel_ideal = [0]*wp
+        vel_comp = [0]*wp
+        acc_ideal = [0]*wp
+        acc_comp = [0]*wp
 
     #Fill rt_list
     for n in range(0,wp):
@@ -173,6 +213,17 @@ def obj_funct(variables, *params):
         t_ideal[n] = d/V_ow*1000
         t_oper[n] = d/V_cw*1000
         t_stop[n] = zwait[n]
+        
+        #Store value for charts
+        if sim:
+            vel_ideal[n] = V_ow
+            vel_comp[n] = V_cw
+            if n > 0:
+                acc_ideal[n] = V_ow - vel_ideal[n-1]
+                acc_comp[n] = V_cw - vel_comp[n-1]
+            else:
+                acc_ideal[n] = V_ow
+                acc_comp[n] = V_cw
 
 
     #aggregate costs
@@ -188,7 +239,11 @@ def obj_funct(variables, *params):
     
     if buf > wp:
         Z_System *= 100000
-    return([Z_Speed,Z_Smooth,Z_Wait,Z_Count])
+    
+    if sim:
+        return([Z_Speed,Z_Smooth,Z_Wait,Z_Count,vel_ideal, vel_comp, acc_ideal, acc_comp])
+    else:
+        return([Z_Speed,Z_Smooth,Z_Wait,Z_Count])
 
 ### MAIN FUNCTION ###
 
