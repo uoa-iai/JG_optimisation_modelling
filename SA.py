@@ -26,13 +26,12 @@ def obj_wrapper(variables, *params):
     var = np.array([buf, a_lat, a_buf])
     par = (lat_kde,lat_lan,p_bad)
     
-    i_count = 5
+    i_count = 10
     i_sum = [0,0,0,0]
-    for i in range(0,5):
+    for i in range(0,i_count):
         res = obj_funct(var, *par)
         for j in range(0,len(i_sum)):
-            i_sum[j]+=res[j]
-            
+            i_sum[j]+=res[j][0]
     for j in range(0,len(i_sum)):
         i_sum[j]/=i_count
     return i_sum
@@ -81,16 +80,19 @@ def obj_funct(variables, *params, sim = False):
 
     #LIVE
     wp = 200
-    I_recv = 200
+    I_recv = 15
     L_list = [10,50,100,300]
+    L_default = 100
     LANavg = 8
     Lmax = 500
     d = 0.05
     #Assuming constant velocty
-    V_min = 0.1
-    V_max = 1
+    V_min = 0.05
+    V_max = 0.5
     V_ow = V_max
     bcrit = 5
+    #Initialise V_cw
+    V_cw = V_ow
     #Loss rate
     pRate = 0.05
     p_bad[0] = pRate
@@ -108,7 +110,11 @@ def obj_funct(variables, *params, sim = False):
     
     #Loop for multiple latencies
     for Lavg in L_list:
-
+    
+        #band-aid for training
+        if not sim:
+            Lavg = L_default
+            
         #wait cooldown
         rt_cd = buf
         tgrace = 0
@@ -131,6 +137,7 @@ def obj_funct(variables, *params, sim = False):
         t_ideal = [0]*wp
         t_stop = [0]*wp
         
+        
         #Initialising Velocity and Acceleration Charts vs distance
         if sim:
             vel_ideal = [0]*wp
@@ -142,19 +149,19 @@ def obj_funct(variables, *params, sim = False):
         for n in range(0,wp):
             #Sample initial packet loss 
             rt_count = 0
-            pRate = p_bad[rt_count]
-            pL = np.random.choice(pLoss,p=[1-pRate,pRate])
-            while pL == 1: #Retransmit until successful
+            
+            while True: #Retransmit until successful
                 if(rt_count < len(p_bad)):
                     pRate = p_bad[rt_count]
                 else:
                     pRate = 0
                 pL = np.random.choice(pLoss,p=[1-pRate,pRate])
-                rt_count += 1
+                if pL > 0:
+                    rt_count += 1
+                else:
+                    break
                 
             rt_list[n] = rt_count
-            # if rt_count > 0:
-            #     print(str(rt_count)+"  RETRANSMISSIONS FOR WAYPOINT "+str(n))
 
 
         #For each waypoint
@@ -169,7 +176,7 @@ def obj_funct(variables, *params, sim = False):
             #Find position of next lost packet
             b_stop = min(n+int(buf),wp)
             for m in range(n+1,b_stop):
-                if rt_list[n]-(buf-b_iter) > 0:
+                if rt_list[m] - (buf - b_iter) > 0:
                     b_loss = b_iter
                     break
                 b_iter += 1
@@ -180,12 +187,11 @@ def obj_funct(variables, *params, sim = False):
             kbuf = a_buf*(1-((buf-b_loss)/buf))
 
             #Scale velocity
-            V_cw = V_ow - V_max*klat - V_max*kbuf
+            V_cw = min(V_ow - V_max*klat - V_max*kbuf, V_cw + 0.03)
             V_cw = max(V_cw,V_min)
-            V_cw = min(V_cw,V_max)
 
             #Calculate the new consumption period - originally in seconds -> convert to ms
-            I_snd = (d/V_cw)*1000
+            I_snd = I_recv*(V_ow/V_cw)
 
             #Calculate error
             zspeed[n] = abs(V_ow - V_cw)
@@ -201,7 +207,7 @@ def obj_funct(variables, *params, sim = False):
                 
             #Use retransmission to check for wait time
             if n>buf:
-                zwait[n] = 2*Lsum+(rt_list[n]*(sum(I_hist)/len(I_hist)))-sum(I_hist)-tgrace
+                zwait[n] = 2*Lsum+rt_list[n]*(I_recv)-sum(I_hist)-tgrace
                 #calculate tgrace for next iteration
                 zwait[n] = max(zwait[n],0)
                 tgrace += zwait[n]
@@ -239,10 +245,13 @@ def obj_funct(variables, *params, sim = False):
         Z_Smooth.append(sum(zsmooth)*1000) # convert to ms scale
         Z_Wait.append(sum(zwait)+buf*I_recv)
         Z_Count.append(sum(zcount))
-        vel_ilist.append(vel_ideal)
-        vel_clist.append(vel_comp)
-        acc_ilist.append(acc_ideal)
-        acc_clist.append(acc_comp)
+        if sim:
+            vel_ilist.append(vel_ideal)
+            vel_clist.append(vel_comp)
+            acc_ilist.append(acc_ideal)
+            acc_clist.append(acc_comp)
+        else:
+            break
         
     if sim:
         return([Z_Speed,Z_Smooth,Z_Wait,Z_Count,vel_ilist, vel_clist, acc_ilist, acc_clist])
@@ -252,66 +261,7 @@ def obj_funct(variables, *params, sim = False):
 ### MAIN FUNCTION ###
 
 if __name__ == "__main__":
-    
-    #Load PDF for latency
-    kdefile = open('kdePickle','rb')
-    lat_kde = pickle.load(kdefile)
-    kdefile.close()
-
-    lanfile = open('LAN_Pickle','rb')
-    lat_lan = pickle.load(lanfile)
-    lanfile.close()
-
-    pbadFile = open('pbadPickle','rb')
-    p_bad = pickle.load(pbadFile)
-    pbadFile.close()
-    
-    #CONSTANTS
-    sim_num = 1000
-    wp = 200
-    I_recv = 15
-    Lavg = 100
-    LANavg = 8
-    Lmax = 2000
-    d = 0.1
-    #Assuming constant velocty
-    V_min = 0.1
-    V_max = 0.26
-    V_ow = V_max
-    bcrit = 3
-    #Loss rate
-    pRate = 0.05
-    p_bad[0] = pRate
-
-    #CONSTRAINTS
-    buf_min = bcrit+1
-    buf_max = wp
-    fact_min = 0
-    fact_max = 1
-
-    #Decision variables
-    # buf = 10
-    # a_lat = 0.0001974
-    # a_buf = 0.0007305
-    buf = 5
-    a_lat = 0.12664153292974867
-    a_buf = 0.0243406027410771
-
-    params = (wp, I_recv, Lavg, LANavg, Lmax, d,V_min,V_max,V_ow,bcrit,lat_kde,lat_lan,p_bad)
-    variables = np.array([buf, a_lat, a_buf])
-
-    #The objective function
-    # print(obj_funct(variables, *params))
-
-    #Optimise using dual annealing
-    bounds=[(buf_min,buf_max),(fact_min,fact_max),(fact_min,fact_max)]
-    # ret = dual_annealing(func = obj_funct, bounds=bounds,args=params,callback=callback_prog)
-    # print("\n\n\n   FINISHED   ")
-    # print(ret)
-
-
-    
-
+    pass
 """
 Results:
 

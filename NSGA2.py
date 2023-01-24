@@ -41,7 +41,7 @@ wp = 200
 buf_min = bcrit+1
 buf_max = wp
 fact_min = 0
-fact_max = 1
+fact_max = 5
 
 class MixedVarsInit(ElementwiseProblem):
     
@@ -66,12 +66,13 @@ class MixedVarsInit(ElementwiseProblem):
         out['F'] = np.array(res)
 
 #GA Settings
-p_size = 200
-g_size = 100
+p_size = 400
+g_size = 200
 
 problem = MixedVarsInit()
 
 #Declare the algorithm
+
 algorithm = NSGA2(pop_size=p_size,sampling=MixedVariableSampling(),mating=MixedVariableMating(eliminate_duplicates=MixedVariableDuplicateElimination()),
                   eliminate_duplicates=MixedVariableDuplicateElimination(),)
 
