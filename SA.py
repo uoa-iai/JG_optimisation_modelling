@@ -108,23 +108,25 @@ def obj_funct(variables, *params, sim = False):
     acc_ilist = []
     acc_clist = []
     
+    first = True
+    
+    #Constants
+    #wait cooldown
+    rt_cd = buf
+    tgrace = 0
+    rt_list = [0]*wp
+    #Ploss status array
+    pLoss = [0,1]
+    
     #Loop for multiple latencies
     for Lavg in L_list:
     
         #band-aid for training
         if not sim:
             Lavg = L_default
-            
-        #wait cooldown
-        rt_cd = buf
-        tgrace = 0
-        rt_list = [0]*wp
 
         #I_snd history
         I_hist = []
-
-        #Ploss status array
-        pLoss = [0,1]
 
         #List of costs within tests
         zspeed = [0]*wp
@@ -137,7 +139,6 @@ def obj_funct(variables, *params, sim = False):
         t_ideal = [0]*wp
         t_stop = [0]*wp
         
-        
         #Initialising Velocity and Acceleration Charts vs distance
         if sim:
             vel_ideal = [0]*wp
@@ -145,23 +146,25 @@ def obj_funct(variables, *params, sim = False):
             acc_ideal = [0]*wp
             acc_comp = [0]*wp
 
-        #Fill rt_list
-        for n in range(0,wp):
-            #Sample initial packet loss 
-            rt_count = 0
-            
-            while True: #Retransmit until successful
-                if(rt_count < len(p_bad)):
-                    pRate = p_bad[rt_count]
-                else:
-                    pRate = 0
-                pL = np.random.choice(pLoss,p=[1-pRate,pRate])
-                if pL > 0:
-                    rt_count += 1
-                else:
-                    break
+        #Fill rt_list the first time only
+        if first:
+            for n in range(0,wp):
+                #Sample initial packet loss 
+                rt_count = 0
                 
-            rt_list[n] = rt_count
+                while True: #Retransmit until successful
+                    if(rt_count < len(p_bad)):
+                        pRate = p_bad[rt_count]
+                    else:
+                        pRate = 0
+                    pL = np.random.choice(pLoss,p=[1-pRate,pRate])
+                    if pL > 0:
+                        rt_count += 1
+                    else:
+                        break
+                    
+                rt_list[n] = rt_count
+                first = False
 
 
         #For each waypoint
@@ -177,18 +180,26 @@ def obj_funct(variables, *params, sim = False):
             b_stop = min(n+int(buf),wp)
             for m in range(n+1,b_stop):
                 if rt_list[m] - (buf - b_iter) > 0:
-                    b_loss = b_iter
+                    b_loss = buf - b_iter
                     break
                 b_iter += 1
 
 
             #Calcualte Scaling Factor
             klat = a_lat*(1-((Lmax-Lsum)/Lmax))
-            kbuf = a_buf*(1-((buf-b_loss)/buf))
+            kbuf = a_buf*(1-(buf-b_loss)/buf)
 
-            #Scale velocity
-            V_cw = min(V_ow - V_max*klat - V_max*kbuf, V_cw + 0.03)
-            V_cw = max(V_cw,V_min)
+            #store previous
+            V_prev = V_cw
+
+            #Scale velocity - LIMITED ACCELERATION
+            V_cw = min(V_ow - V_max*klat - V_max*kbuf, V_prev + V_max*0.1)
+            V_cw = max(V_cw,V_min, V_prev-V_max*0.1)
+            
+            #Scale Velocity - QUADRATIC
+            V_cw = (V_ow/(-1*(buf)**2))*((b_loss)**2-buf**2) - (V_max*klat)
+            V_cw = min(V_prev + V_max*0.1,V_cw)
+            V_cw = max(V_cw, V_min)
 
             #Calculate the new consumption period - originally in seconds -> convert to ms
             I_snd = I_recv*(V_ow/V_cw)

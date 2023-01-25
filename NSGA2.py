@@ -66,8 +66,8 @@ class MixedVarsInit(ElementwiseProblem):
         out['F'] = np.array(res)
 
 #GA Settings
-p_size = 400
-g_size = 200
+p_size = 200
+g_size = 100
 
 problem = MixedVarsInit()
 

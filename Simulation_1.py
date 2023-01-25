@@ -28,7 +28,7 @@ if __name__ == "__main__":
     pbadFile.close()
 
     #CONSTANTS
-    sim_num = 500
+    sim_num = 10
 
     #CONSTRAINTS
     wp = 200
@@ -39,17 +39,19 @@ if __name__ == "__main__":
     fact_max = 1
     
     #Optimised using NSGA2 with aggregation - OM-X
-    buf = 7
+    buf = 27
     a_lat = 0.44349102025504017
     a_buf = 0.3513430414811513
     
-    #Aggressive above
-    a_lat = 0.649808348469213
-    a_buf = 3.2978240775223755
+    #Dual acceleration smoothing - SMOOTH
+    buf = 164
+    a_lat = 0.027580398743234813
+    a_buf = 2.312662017800463
     
-    #Dual acceleration smoothing
-    a_lat = 4.56707362519241
-    a_buf = 1.221827834854606
+    #Tests OMX
+    buf = 32
+    a_lat = 0.7769323817216661
+    
 
     #Random Guess
     # buf = 20
@@ -126,53 +128,53 @@ if __name__ == "__main__":
         
         
     fig, ax = plt.subplots()
-    ax.set_title('Speed Cost Distribution Over 500 Simulations')
+    ax.set_title('Speed Cost Distribution Over '+str(sim_num)+' Simulations')
     ax.set(xlabel='Speed Cost Value', ylabel='Frequency (samples)')
     iter = 0
     for item in speed_costs:
-        ax.hist(item, bins=100, label=str(lat_val[iter])+" ms")
+        ax.hist(item, bins=100, label=str(lat_val[iter])+" ms", histtype=u'step')
         iter += 1
     ax.legend(loc="upper right")
     plt.show()
     
     fig, ax = plt.subplots()
-    ax.set_title('Smooth Cost Distribution Over 500 Simulations')
+    ax.set_title('Smooth Cost Distribution Over '+str(sim_num)+' Simulations')
     ax.set(xlabel='Smooth Cost Value', ylabel='Frequency (samples)')
     iter = 0
     for item in smooth_costs:
-        ax.hist(item, bins=100, label=str(lat_val[iter])+" ms")
+        ax.hist(item, bins=100, label=str(lat_val[iter])+" ms", histtype=u'step')
         iter += 1
     ax.legend(loc="upper right")
     plt.show()
     
     fig, ax = plt.subplots()
-    ax.set_title('Wait Cost Distribution Over 500 Simulations')
+    ax.set_title('Wait Cost Distribution Over '+str(sim_num)+' Simulations')
     ax.set(xlabel='Wait Cost Value', ylabel='Frequency (samples)')
     iter = 0
     for item in wait_costs:
-        ax.hist(item, bins=100, label=str(lat_val[iter])+" ms")
+        ax.hist(item, bins=100, label=str(lat_val[iter])+" ms", histtype=u'step')
         iter += 1
     ax.legend(loc="upper right")
     plt.show()
     
     fig, ax = plt.subplots()
-    ax.set_title('Count Cost Distribution Over 500 Simulations')
+    ax.set_title('Count Cost Distribution Over '+str(sim_num)+' Simulations')
     ax.set(xlabel='Count Cost Value', ylabel='Frequency (samples)')
     iter = 0
     for item in count_costs:
-        ax.hist(item, bins=100, label=str(lat_val[iter])+" ms")
+        ax.hist(item, bins=100, label=str(lat_val[iter])+" ms", histtype=u'step')
         iter += 1
     ax.legend(loc="upper right")
     plt.show()
     
     fig, ax = plt.subplots()
-    ax.set_title('Velocity Over Distance')
+    ax.set_title('Velocity Per Waypoint')
     ax.set(xlabel='Waypoints', ylabel='Velocity (m/s)')
     iter = 0
     for item in vel_list:
         ind = range(len(item))
         if iter == 0:
-            ax.plot(ind,item,label='ideal')
+            ax.plot(ind,item,c='m',label='ideal')
         else:
             ax.plot(ind,item,label=str(lat_val[iter - 1])+" ms")
         iter += 1
@@ -181,13 +183,13 @@ if __name__ == "__main__":
     plt.show()
     
     fig, ax = plt.subplots()
-    ax.set_title('Acceleration Over Distance')
+    ax.set_title('Acceleration Per Waypoint')
     ax.set(xlabel='Waypoints', ylabel='Acceleration (m/s^2)')
     iter = 0
     for item in acc_list:
         ind = range(len(item))
         if iter == 0:
-            ax.plot(ind,item,label='ideal')
+            ax.plot(ind,item,c='m',label='ideal')
         else:
             ax.plot(ind,item,label=str(lat_val[iter - 1])+" ms")
         iter += 1
