@@ -28,10 +28,10 @@ if __name__ == "__main__":
     pbadFile.close()
 
     #CONSTANTS
-    sim_num = 10
+    sim_num = 1
 
     #CONSTRAINTS
-    wp = 200
+    wp = 1000
     bcrit = 3
     buf_min = bcrit+1
     buf_max = wp

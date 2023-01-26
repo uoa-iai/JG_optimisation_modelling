@@ -47,8 +47,9 @@ def obj_funct(variables, *params, sim = False):
     buf, a_lat, a_buf = variables
     
 #CONSTANTS
+    wp = 1000
+
     #OM-X
-    wp = 200
     I_recv = 15
     d = 0.05
     V_min = 0.05
@@ -57,13 +58,13 @@ def obj_funct(variables, *params, sim = False):
     bcrit = 5
     
     #TB3
-    wp = 200
-    I_recv = 150
-    d = 0.1
-    V_min = 0.1
-    V_max = 0.26
-    V_ow = V_max
-    bcrit = 3
+    # wp = 200
+    # I_recv = 150
+    # d = 0.1
+    # V_min = 0.1
+    # V_max = 0.26
+    # V_ow = V_max
+    # bcrit = 3
     
     #Network Conditions
     L_list = [10,50,100,300]
@@ -128,26 +129,58 @@ def obj_funct(variables, *params, sim = False):
             vel_comp = [0]*wp
             acc_ideal = [0]*wp
             acc_comp = [0]*wp
+        
+        #Markov Setup
+        mCount = 0
+        mList = [0]
+        rt_count = False
+        success = False
+        
 
-        #Fill rt_list the first time only
+        #Fill rt_list, keeping the same network pattern for all latencies
         if first:
-            for n in range(0,wp):
-                #Sample initial packet loss 
-                rt_count = 0
+            # for n in range(0,wp):
+            #     #Sample initial packet loss 
+            #     rt_count = 0
                 
-                while True: #Retransmit until successful
-                    if(rt_count < len(p_bad)):
-                        pRate = p_bad[rt_count]
-                    else:
-                        pRate = 0
-                    pL = np.random.choice(pLoss,p=[1-pRate,pRate])
-                    if pL > 0:
-                        rt_count += 1
-                    else:
-                        break
-                    
-                rt_list[n] = rt_count
-                first = False
+            #     while True: #Retransmit until successful
+            #         if(rt_count < len(p_bad)):
+            #             pRate = p_bad[rt_count]
+            #         else:
+            #             pRate = 0
+            #         pL = np.random.choice(pLoss,p=[1-pRate,pRate])
+            #         if pL > 0:
+            #             rt_count += 1
+            #         else:
+            #             break
+            
+            #     rt_list[n] = rt_count
+            
+            ############### batch
+            while len(mList) > 0:
+                
+                pRate = (0,p_bad[rt_count])[rt_count < len(p_bad)]
+                if np.random.choice(pLoss,p=[1-pRate,pRate]) > 0:
+                    for packet in mList:
+                        #Test for packet failure
+                        rt_list[packet] += 1
+                else:
+                    success = True
+                            
+                mList = [value for value in mList if value != -1]
+                if success:
+                    rt_count = 0
+                    mList = []
+                else:
+                    rt_count += 1
+                
+                mCount += 1
+                
+                if mCount < wp:
+                    mList.append(mCount)
+                    success = False
+            ####### end batch
+            first = False
 
 
         #For each waypoint
@@ -178,14 +211,15 @@ def obj_funct(variables, *params, sim = False):
             V_prev = V_cw
 
             #Scale velocity - LIMITED ACCELERATION
-            V_cw = min(V_ow - V_max*klat - V_max*kbuf, V_prev + V_max*0.1)
-            V_cw = max(V_cw,V_min, V_prev-V_max*0.1)
+            # V_cw = min(V_ow - V_max*klat - V_max*kbuf, V_prev + V_max*0.1)
+            # V_cw = max(V_cw,V_min, V_prev-V_max*0.1)
             
             #Scale Velocity - QUADRATIC
-            V_cw = (V_ow/(-1*(buf)**2))*((a_buf*b_loss)**2-buf**2) - (V_max*klat)
+            V_cw = ((V_ow-(V_ow*klat))/(-1*(buf)**2))*((a_buf*b_loss)**2-buf**2)
             #Linear limiter on upwards acceleration
-            V_cw = min(V_prev + V_max*0.01,V_cw)
+            V_cw = min(V_prev + V_max*0.0001,V_cw)
             V_cw = max(V_cw, V_min)
+            
             #Calculate the new consumption period - originally in seconds -> convert to ms
             I_snd = I_recv*(V_ow/V_cw)
 
@@ -258,26 +292,10 @@ def obj_funct(variables, *params, sim = False):
 
 if __name__ == "__main__":
     pass
+
 """
 Results:
 
 ██████████████████████████████████████████████████████████████████████████████████
-
-pRate = 0.05
-
-Initial guess: 15,0.5,0.5
-     fun: 1518.3329637249328
- message: ['Maximum number of iteration reached']
-    nfev: 8125
-    nhev: 0
-     nit: 1000
-    njev: 531
-  status: 0
- success: True
-       x: array([9.73930922e+00, 1.97493140e-04, 7.30581231e-04])
-
-██████████████████████████████████████████████████████████████████████████████████
-
-
 
 """
