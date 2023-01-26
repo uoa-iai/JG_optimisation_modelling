@@ -36,7 +36,7 @@ pbadFile.close()
 params = (lat_kde,lat_lan,p_bad)
 
 #CONSTRAINTS
-bcrit = 5
+bcrit = 3
 wp = 200
 buf_min = bcrit+1
 buf_max = wp

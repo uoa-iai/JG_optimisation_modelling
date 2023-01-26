@@ -5,6 +5,7 @@ import numpy as np
 import pandas as pd
 from sklearn.neighbors import KernelDensity
 import os
+import collections
    
 import pickle
 
@@ -47,52 +48,29 @@ def obj_funct(variables, *params, sim = False):
     
 #CONSTANTS
     #OM-X
-    # wp = 200
-    # I_recv = 10
-    # Lavg = 100
-    # LANavg = 8
-    # Lmax = 500
-    # d = 0.05
-    # #Assuming constant velocty
-    # V_min = 0.1
-    # V_max = 1
-    # V_ow = V_max
-    # bcrit = 5
-    # #Loss rate
-    # pRate = 0.05
-    # p_bad[0] = pRate
-
-    #TB3
-    # wp = 200
-    # I_recv = 200
-    # Lavg = 100
-    # LANavg = 8
-    # Lmax = 500
-    # d = 0.05
-    # #Assuming constant velocty
-    # V_min = 0.1
-    # V_max = 1
-    # V_ow = V_max
-    # bcrit = 5
-    # #Loss rate
-    # pRate = 0.05
-    # p_bad[0] = pRate
-
-    #LIVE
     wp = 200
     I_recv = 15
-    L_list = [10,50,100,300]
-    L_default = 100
-    LANavg = 8
-    Lmax = 500
     d = 0.05
-    #Assuming constant velocty
     V_min = 0.05
     V_max = 0.5
     V_ow = V_max
     bcrit = 5
-    #Initialise V_cw
-    V_cw = V_ow
+    
+    #TB3
+    wp = 200
+    I_recv = 150
+    d = 0.1
+    V_min = 0.1
+    V_max = 0.26
+    V_ow = V_max
+    bcrit = 3
+    
+    #Network Conditions
+    L_list = [10,50,100,300]
+    L_default = 100
+    LANavg = 8
+    Lmax = 500
+
     #Loss rate
     pRate = 0.05
     p_bad[0] = pRate
@@ -117,9 +95,14 @@ def obj_funct(variables, *params, sim = False):
     rt_list = [0]*wp
     #Ploss status array
     pLoss = [0,1]
+    #Initialise V_cw
+    V_cw = V_ow
     
     #Loop for multiple latencies
     for Lavg in L_list:
+        
+        #Initialise circular buffer for latency smoothing
+        lat_hist = collections.deque(maxlen=30)
     
         #band-aid for training
         if not sim:
@@ -173,6 +156,8 @@ def obj_funct(variables, *params, sim = False):
             Loff = lat_kde.sample(1)[0][0]
             LANoff = lat_lan.sample(1)[0][0]
             Lsum = (Loff + Lavg + LANoff + LANavg)
+            lat_hist.append(Lsum)
+            Lsmoothed = sum(lat_hist)/float(len(lat_hist))
 
             b_loss = 0
             b_iter = 1
@@ -186,7 +171,7 @@ def obj_funct(variables, *params, sim = False):
 
 
             #Calcualte Scaling Factor
-            klat = a_lat*(1-((Lmax-Lsum)/Lmax))
+            klat = a_lat*(1-((Lmax-Lsmoothed)/Lmax))
             kbuf = a_buf*(1-(buf-b_loss)/buf)
 
             #store previous
@@ -197,10 +182,10 @@ def obj_funct(variables, *params, sim = False):
             V_cw = max(V_cw,V_min, V_prev-V_max*0.1)
             
             #Scale Velocity - QUADRATIC
-            V_cw = (V_ow/(-1*(buf)**2))*((b_loss)**2-buf**2) - (V_max*klat)
-            V_cw = min(V_prev + V_max*0.1,V_cw)
+            V_cw = (V_ow/(-1*(buf)**2))*((a_buf*b_loss)**2-buf**2) - (V_max*klat)
+            #Linear limiter on upwards acceleration
+            V_cw = min(V_prev + V_max*0.01,V_cw)
             V_cw = max(V_cw, V_min)
-
             #Calculate the new consumption period - originally in seconds -> convert to ms
             I_snd = I_recv*(V_ow/V_cw)
 
@@ -216,7 +201,7 @@ def obj_funct(variables, *params, sim = False):
             else:
                 I_hist.append(I_snd)
                 
-            #Use retransmission to check for wait time
+            #Use retransmission to check for wait time - Lsum intentional
             if n>buf:
                 zwait[n] = 2*Lsum+rt_list[n]*(I_recv)-sum(I_hist)-tgrace
                 #calculate tgrace for next iteration

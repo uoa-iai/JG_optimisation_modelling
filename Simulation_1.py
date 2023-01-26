@@ -48,15 +48,13 @@ if __name__ == "__main__":
     a_lat = 0.027580398743234813
     a_buf = 2.312662017800463
     
-    #Tests OMX
+    #Quadratic Smoothing
     buf = 32
     a_lat = 0.7769323817216661
+    a_buf = 0.5
     
-
-    #Random Guess
-    # buf = 20
-    # a_lat = 0.7
-    # a_buf = 0.7
+    #TB3 - Quadratic Smoothing
+    
 
     params = (lat_kde,lat_lan,p_bad)
     variables = np.array([buf, a_lat, a_buf])
@@ -126,7 +124,7 @@ if __name__ == "__main__":
         acc_list[i+1] = acc_comp[i]
                  
         
-        
+    '''
     fig, ax = plt.subplots()
     ax.set_title('Speed Cost Distribution Over '+str(sim_num)+' Simulations')
     ax.set(xlabel='Speed Cost Value', ylabel='Frequency (samples)')
@@ -166,7 +164,7 @@ if __name__ == "__main__":
         iter += 1
     ax.legend(loc="upper right")
     plt.show()
-    
+    '''
     fig, ax = plt.subplots()
     ax.set_title('Velocity Per Waypoint')
     ax.set(xlabel='Waypoints', ylabel='Velocity (m/s)')
