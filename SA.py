@@ -159,7 +159,10 @@ def obj_funct(variables, *params, sim = False):
             ############### batch
             while len(mList) > 0:
                 
-                pRate = (0,p_bad[rt_count])[rt_count < len(p_bad)]
+                try:
+                    pRate = p_bad[rt_count]
+                except IndexError:
+                    pRate = 0
                 if np.random.choice(pLoss,p=[1-pRate,pRate]) > 0:
                     for packet in mList:
                         #Test for packet failure
