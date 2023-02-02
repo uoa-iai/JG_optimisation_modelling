@@ -5,12 +5,41 @@ import numpy as np
 import pandas as pd
 from sklearn.neighbors import KernelDensity
 import os
+import collections
 
 import pickle
 
 import matplotlib.pyplot as plt
 
 from SA import obj_funct
+
+#timing
+import time
+
+class TimerError(Exception):
+    #Report timer errors
+    print("TIMER ERROR")
+
+class Timer:
+    """A class to implement simple code timing"""
+    def __init__(self):
+        self._start_time = None
+        
+    def start(self):
+        #Check if timer is not running by checking state of start time
+        if self._start_time is not None:
+            raise TimerError(f"Timer is running, use .stop() to stop it")
+        
+        self._start_time = time.perf_counter() # time.perf_counter() is the current value of an arbitrary timer
+    
+    def stop(self):
+        if self._start_time is None:
+            raise TimerError(f"Timer is not running, use .start() to start it")
+        
+        #calculate runtime
+        runtime = time.perf_counter() - self._start_time
+        self._start_time = None
+        return runtime
 
 if __name__ == "__main__":
     
@@ -27,8 +56,7 @@ if __name__ == "__main__":
     p_bad = pickle.load(pbadFile)
     pbadFile.close()
 
-    #CONSTANTS
-    sim_num = 1
+
 
     #CONSTRAINTS
     wp = 1000
@@ -38,26 +66,25 @@ if __name__ == "__main__":
     fact_min = 0
     fact_max = 1
     
-    #Optimised using NSGA2 with aggregation - OM-X
-    buf = 27
-    a_lat = 0.44349102025504017
-    a_buf = 0.3513430414811513
+    #MODE SELECT
+    sim_num = 10000
+    mode = 'tb3' #omx or tb3
     
-    #Dual acceleration smoothing - SMOOTH
-    buf = 164
-    a_lat = 0.027580398743234813
-    a_buf = 2.312662017800463
+    if mode == 'omx':
+        #Optimised using NSGA2 with aggregation - OM-X
+        buf = 97
+        a_lat = 0.15391271428130127
+        a_buf =  0.16180063274683415
+        a_acc = 0.7511231674097997
     
-    #Revamped Costs
-    buf = 97
-    a_lat = 0.15391271428130127
-    a_buf =  0.16180063274683415
-    a_acc = 0.7511231674097997
-    
-    #TB3 - Quadratic Smoothing
-    
+    if mode == 'tb3':
+        #TB3 - Quadratic Smoothing
+        buf = 80
+        a_lat = 0.8342855939600385
+        a_buf = 0.011781929313469802
+        a_acc = 0.2810546088039789
 
-    params = (lat_kde,lat_lan,p_bad)
+    params = (lat_kde,lat_lan,p_bad,mode)
     variables = np.array([buf, a_lat, a_buf, a_acc])
     
     speed_list = []
@@ -74,9 +101,16 @@ if __name__ == "__main__":
     #id for indexing multiple latencies
     lat_id = [0,1,2,3]
     lat_val = [10,50,100,300]
+    
+    tm = Timer()
+    tm.start()
+    time_hist = collections.deque(maxlen=50)
 
     for i in range(0,sim_num):
-        print(str(i)+"/"+str(sim_num))
+        runtime = tm.stop()
+        time_hist.append(runtime)
+        print(f"{i}/{sim_num}    Iteration: {runtime:0.4f} seconds   Time Remaining: {((sum(time_hist)/len(time_hist))*(sim_num-i))/60:0.4f} minutes")
+        tm.start()
         cost_list = obj_funct(variables,*params,sim=True)
         speed_list.append(cost_list[0])
         smooth_list.append(cost_list[1])
@@ -132,74 +166,74 @@ if __name__ == "__main__":
                  
         
     
-    # fig, ax = plt.subplots()
-    # ax.set_title('Speed Cost Distribution Over '+str(sim_num)+' Simulations')
-    # ax.set(xlabel='Speed Cost Value', ylabel='Frequency (samples)')
-    # iter = 0
-    # for item in speed_costs:
-    #     ax.hist(item, bins=100, label=str(lat_val[iter])+" ms", histtype=u'step')
-    #     iter += 1
-    # ax.legend(loc="upper right")
-    # plt.show()
+    fig, ax = plt.subplots()
+    ax.set_title('Speed Cost Distribution Over '+str(sim_num)+' Simulations')
+    ax.set(xlabel='Speed Cost Value', ylabel='Frequency (samples)')
+    iter = 0
+    for item in speed_costs:
+        ax.hist(item, bins=100, label=str(lat_val[iter])+" ms", histtype=u'step')
+        iter += 1
+    ax.legend(loc="upper right")
+    plt.show()
     
-    # fig, ax = plt.subplots()
-    # ax.set_title('Smooth Cost Distribution Over '+str(sim_num)+' Simulations')
-    # ax.set(xlabel='Smooth Cost Value', ylabel='Frequency (samples)')
-    # iter = 0
-    # for item in smooth_costs:
-    #     ax.hist(item, bins=100, label=str(lat_val[iter])+" ms", histtype=u'step')
-    #     iter += 1
-    # ax.legend(loc="upper right")
-    # plt.show()
+    fig, ax = plt.subplots()
+    ax.set_title('Smooth Cost Distribution Over '+str(sim_num)+' Simulations')
+    ax.set(xlabel='Smooth Cost Value', ylabel='Frequency (samples)')
+    iter = 0
+    for item in smooth_costs:
+        ax.hist(item, bins=100, label=str(lat_val[iter])+" ms", histtype=u'step')
+        iter += 1
+    ax.legend(loc="upper right")
+    plt.show()
     
-    # fig, ax = plt.subplots()
-    # ax.set_title('Wait Cost Distribution Over '+str(sim_num)+' Simulations')
-    # ax.set(xlabel='Wait Cost Value', ylabel='Frequency (samples)')
-    # iter = 0
-    # for item in wait_costs:
-    #     ax.hist(item, bins=100, label=str(lat_val[iter])+" ms", histtype=u'step')
-    #     iter += 1
-    # ax.legend(loc="upper right")
-    # plt.show()
+    fig, ax = plt.subplots()
+    ax.set_title('Wait Cost Distribution Over '+str(sim_num)+' Simulations')
+    ax.set(xlabel='Wait Cost Value', ylabel='Frequency (samples)')
+    iter = 0
+    for item in wait_costs:
+        ax.hist(item, bins=100, label=str(lat_val[iter])+" ms", histtype=u'step')
+        iter += 1
+    ax.legend(loc="upper right")
+    plt.show()
     
-    # fig, ax = plt.subplots()
-    # ax.set_title('Count Cost Distribution Over '+str(sim_num)+' Simulations')
-    # ax.set(xlabel='Count Cost Value', ylabel='Frequency (samples)')
-    # iter = 0
-    # for item in count_costs:
-    #     ax.hist(item, bins=100, label=str(lat_val[iter])+" ms", histtype=u'step')
-    #     iter += 1
-    # ax.legend(loc="upper right")
-    # plt.show()
+    fig, ax = plt.subplots()
+    ax.set_title('Count Cost Distribution Over '+str(sim_num)+' Simulations')
+    ax.set(xlabel='Count Cost Value', ylabel='Frequency (samples)')
+    iter = 0
+    for item in count_costs:
+        ax.hist(item, bins=100, label=str(lat_val[iter])+" ms", histtype=u'step')
+        iter += 1
+    ax.legend(loc="upper right")
+    plt.show()
     
-    # fig, ax = plt.subplots()
-    # ax.set_title('Velocity Per Waypoint')
-    # ax.set(xlabel='Waypoints', ylabel='Velocity (m/s)')
-    # iter = 0
-    # for item in vel_list:
-    #     ind = range(len(item))
-    #     if iter == 0:
-    #         ax.plot(ind,item,c='m',label='ideal')
-    #     else:
-    #         ax.plot(ind,item,label=str(lat_val[iter - 1])+" ms")
-    #     iter += 1
+    fig, ax = plt.subplots()
+    ax.set_title('Velocity Per Waypoint')
+    ax.set(xlabel='Waypoints', ylabel='Velocity (m/s)')
+    iter = 0
+    for item in vel_list:
+        ind = range(len(item))
+        if iter == 0:
+            ax.plot(ind,item,c='m',label='ideal')
+        else:
+            ax.plot(ind,item,label=str(lat_val[iter - 1])+" ms")
+        iter += 1
             
-    # ax.legend(loc="upper right")
-    # plt.show()
+    ax.legend(loc="upper right")
+    plt.show()
     
-    # fig, ax = plt.subplots()
-    # ax.set_title('Acceleration Per Waypoint')
-    # ax.set(xlabel='Waypoints', ylabel='Acceleration (m/s^2)')
-    # iter = 0
-    # for item in acc_list:
-    #     ind = range(len(item))
-    #     if iter == 0:
-    #         ax.plot(ind,item,c='m',label='ideal')
-    #     else:
-    #         ax.plot(ind,item,label=str(lat_val[iter - 1])+" ms")
-    #     iter += 1
-    # ax.legend(loc="upper right")
-    # plt.show()
+    fig, ax = plt.subplots()
+    ax.set_title('Acceleration Per Waypoint')
+    ax.set(xlabel='Waypoints', ylabel='Acceleration (m/s^2)')
+    iter = 0
+    for item in acc_list:
+        ind = range(len(item))
+        if iter == 0:
+            ax.plot(ind,item,c='m',label='ideal')
+        else:
+            ax.plot(ind,item,label=str(lat_val[iter - 1])+" ms")
+        iter += 1
+    ax.legend(loc="upper right")
+    plt.show()
     
     fig, ax = plt.subplots()
     ax.set_title('Velocity over time')
@@ -216,7 +250,7 @@ if __name__ == "__main__":
     
     fig, ax = plt.subplots()
     ax.set_title('Required Retransmissions Per Waypoint')
-    ax.set(xlabel='Waypoints', ylabel='retransmission count')
+    ax.set(xlabel='Waypoints', ylabel='Retransmission Count')
     ind = range(len(rt_list))
     plt.step(ind,rt_list)
     plt.show()

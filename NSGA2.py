@@ -37,7 +37,10 @@ pbadFile = open('pbadPickle','rb')
 p_bad = pickle.load(pbadFile)
 pbadFile.close()
 
-params = (lat_kde,lat_lan,p_bad)
+#MODE SELECTION - omx OR tb3
+mode = 'omx'
+
+params = (lat_kde,lat_lan,p_bad,mode)
 
 #CONSTRAINTS
 bcrit = 5

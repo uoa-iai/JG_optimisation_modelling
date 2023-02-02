@@ -8,18 +8,12 @@ import os
 import collections
 from matplotlib import pyplot as plt
 from functools import reduce
+import sys
    
-import pickle
+import pickle         
 
 #Globals
 alg_iter = 0
-
-#Callback function to show progress
-def callback_prog(x, f, context):
-    global alg_iter
-    print(str(alg_iter)+"/"+"1000       "+"buf: "+str(x[0])+" LAT_FACT: "+str(x[1])+" BUF_FACT: "+str(x[2]))
-    alg_iter += 1
-
 
 def obj_wrapper(variables, *params):
     lat_kde,lat_lan,p_bad = params
@@ -43,28 +37,34 @@ def obj_wrapper(variables, *params):
 A function that runs one iteration of the robot simulation
 """
 def obj_funct(variables, *params, sim = False):
-    lat_kde,lat_lan,p_bad = params
+    lat_kde,lat_lan,p_bad, mode = params
     buf, a_lat, a_buf, a_acc = variables
     
 #CONSTANTS
     wp = 1000
 
-    #OM-X
-    I_recv = 10
-    d = 0.05
-    V_min = 0.05
-    V_max = 0.5
-    V_ow = V_max
-    bcrit = 5
+    if mode == 'omx':
+        #OM-X
+        I_recv = 10
+        d = 0.05
+        V_min = 0.05
+        V_max = 0.5
+        bcrit = 5
+
+    elif mode == 'tb3':
+        #TB3
+        I_recv = 150 #ms
+        d = 0.1 #m
+        V_min = 0.1 #m/s
+        V_max = 0.26 #m/s
+        bcrit = 5
     
-    #TB3
-    # wp = 200
-    # I_recv = 150
-    # d = 0.1
-    # V_min = 0.1
-    # V_max = 0.26
-    # V_ow = V_max
-    # bcrit = 3
+    else:
+        print("INVALID MODE")
+        sys.exit()
+        
+    
+    V_ow = V_max
     
     #Network Conditions
     L_list = [10,50,100,300]
@@ -92,10 +92,6 @@ def obj_funct(variables, *params, sim = False):
     rt_store = []
     
     first = True
-    
-    #Constants
-    #wait cooldown
-    rt_cd = buf
     
     rt_list = [0]*wp
     #Ploss status array
@@ -153,7 +149,9 @@ def obj_funct(variables, *params, sim = False):
         wait_cost = 0
         count_cost = 0
         
-        
+        #Velocity Profile Setup
+        vel_profile = [V_max]
+        vel_start = [0]
         
 
         #Fill rt_list, keeping the same network pattern for all latencies
@@ -180,7 +178,6 @@ def obj_funct(variables, *params, sim = False):
             rt_prev = 0
             rt_count = 0
             while len(mList) > 0:
-                
                 try:
                     if rt_prev >= len(p_bad) or rt_count >= len(p_bad):
                         pRate = 0
@@ -240,7 +237,6 @@ def obj_funct(variables, *params, sim = False):
 
             #Calcualte Scaling Factor
             klat = a_lat*(1-((Lmax-Lsmoothed)/Lmax))
-            kbuf = a_buf*(1-(buf-b_loss)/buf)
 
             #store previous
             V_prev = V_cw
@@ -251,7 +247,7 @@ def obj_funct(variables, *params, sim = False):
             V_cw = min(V_prev + V_max*a_acc,V_cw)
             V_cw = max(V_cw, V_min)
             
-            #Calculate the new consumption period - originally in seconds -> convert to ms
+            #Calculate the new consumption period - ms
             I_snd = I_recv*(V_ow/V_cw)
             I_hist.append(I_snd)
             
@@ -273,7 +269,7 @@ def obj_funct(variables, *params, sim = False):
                 time_run.append(time_run[n-1]+I_snd)
                 
                 #Calculate the number of retransmissions remaining when attempted execution
-                rt_max = rt_list[n]-int(buf*(I_recv*len(I_hist)/(sum(I_hist))))
+                rt_max = rt_list[n]-int( sum(I_hist)/I_recv )
                              
                 #Calculate initial wait time
                 time_rt = time_run[n-1]+ 2*Lsmoothed + rt_max*I_recv - tgrace if rt_max > 0 else 0
@@ -285,7 +281,7 @@ def obj_funct(variables, *params, sim = False):
                         try:
                             cnt = j-n
                             #Find number of retransmissions
-                            rt_try = rt_list[j]-int(buf*(I_recv*(len(I_hist)-cnt)/(sum(list(I_hist)[cnt:]))))
+                            rt_try = rt_list[j]-int(sum(list(I_hist)[cnt:])/I_recv )
                             #store if larger 
                             if rt_try > rt_max:
                                 rt_max = rt_try
@@ -328,28 +324,6 @@ def obj_funct(variables, *params, sim = False):
 
             #Calculate error
             zspeed[n] = abs(V_ow - V_cw)
-            # print(count_cost)
-            #OLD
-            # if n > 0:
-            #     zsmooth[n] = abs(zspeed[n]-zspeed[n-1])
-
-            #Use retransmission to check for wait time - Lsum intentional
-            # if n>buf:
-            #     zwait[n] = 2*Lsum+rt_list[n]*(I_recv)-sum(I_hist)-tgrace
-            #     #calculate tgrace for next iteration
-            #     zwait[n] = max(zwait[n],0)
-            #     tgrace += zwait[n]
-            # else:
-            #     zwait[n] = I_snd*rt_count
-            #     zwait[n] = max(zwait[n],0)
-
-            # #calculate zcount
-            # if zwait[n] > 0 and rt_cd <= 0:
-            #     rt_cd = buf
-            #     zcount[n] = 1
-            # else:
-            #     rt_cd -= 1
-            #     zcount[n] - 0
             
             #Calculate Simulation Results
             t_ideal[n] = d/V_ow*1000
@@ -371,7 +345,7 @@ def obj_funct(variables, *params, sim = False):
         Z_Speed.append(speed_cost) #convert to ms scale
         Z_Smooth.append(smooth_cost) # convert to ms scale
         Z_Wait.append(wait_cost)
-        Z_Count.append(2**count_cost)
+        Z_Count.append(count_cost)
         if sim:
             vel_ilist.append(vel_ideal)
             vel_clist.append(vel_comp)
