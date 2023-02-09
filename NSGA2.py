@@ -48,7 +48,7 @@ wp = 1000
 buf_min = bcrit+1
 buf_max = round(wp/10)
 fact_min = 0
-fact_max = 5
+fact_max = 1
 
 class MyCallback(Callback):
 

@@ -15,22 +15,6 @@ dirtcp = os.path.abspath(os.path.join(dirname,'..','..','..','\Sfti_Network_Test
 dirwan = os.path.abspath(os.path.join(dirname,'..','..','..','\Sfti_Network_Testing_Data','WAN_TCP','**','Output',filetype))
 dirudp = os.path.abspath(os.path.join(dirname,'..','..','..','\Sfti_Network_Testing_Data','LAN_UDP','Output',filetype))
 
-print('\n\nLAN TCP FILES\n')
-
-# loss_sum = 0
-# loss_count = 0
-
-# #loop through and obtain data
-# for fpath in glob.glob(dirtcp): #for each csv file...
-#     print(fpath)
-#     df = pd.read_csv(fpath)
-#     #drop NA values and reset indicies
-#     loss_df = df.iloc[:,3].dropna(axis=0).reset_index(drop=True)
-#     loss_sum += loss_df.sum(axis=0)
-#     loss_count += loss_df.size
-
-# loss_mean = loss_sum/loss_count
-# print(loss_mean)
 
 print('\n\nWAN TCP FILES\n')
 
@@ -51,8 +35,6 @@ for fpath in glob.glob(dirwan): #for each TCP csv file...
     #drop NA values and reset indicies
     loss_df = df.iloc[:,3].dropna(axis=0).reset_index(drop=True)
     #loop through all rows and get the data
-    # loss_sum += loss_df.sum(axis=0)
-    # loss_count += loss_df.size
     for i in range(0,len(loss_df.index)):
         total_count += 1
         if loss_df.iat[i] > 0:

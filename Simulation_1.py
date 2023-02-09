@@ -67,7 +67,7 @@ if __name__ == "__main__":
     fact_max = 1
     
     #MODE SELECT
-    sim_num = 10000
+    sim_num = 1
     mode = 'tb3' #omx or tb3
     
     if mode == 'omx':
@@ -164,7 +164,6 @@ if __name__ == "__main__":
     for i in range(0,4):
         acc_list[i+1] = acc_comp[i]
                  
-        
     
     fig, ax = plt.subplots()
     ax.set_title('Speed Cost Distribution Over '+str(sim_num)+' Simulations')

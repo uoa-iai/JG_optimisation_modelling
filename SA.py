@@ -2,20 +2,15 @@
 
 from email.utils import decode_rfc2231
 import numpy as np
-import pandas as pd
-from sklearn.neighbors import KernelDensity
-import os
 import collections
-from matplotlib import pyplot as plt
 from functools import reduce
 import sys
    
-import pickle         
-
-#Globals
-alg_iter = 0
 
 def obj_wrapper(variables, *params):
+    """This function is for use with the NSGA-II algorithm it loads parameters and runs the simulation 5 times, aggregating the results"""
+    
+    #Load parameters
     lat_kde,lat_lan,p_bad = params
     buf, a_lat, a_buf, a_acc = variables
     buf = round(buf)
@@ -23,6 +18,7 @@ def obj_wrapper(variables, *params):
     var = np.array([buf, a_lat, a_buf, a_acc])
     par = (lat_kde,lat_lan,p_bad)
     
+    #Run simulation 5 times, aggregating the results
     i_count = 5
     i_sum = [0,0,0,0]
     for i in range(0,i_count): 
@@ -33,26 +29,28 @@ def obj_wrapper(variables, *params):
     
     
 
-"""
-A function that runs one iteration of the robot simulation
-"""
+
 def obj_funct(variables, *params, sim = False):
+    """ A function that runs one iteration of the robot simulation """
+    
+    ### INITIALISATION ###
+    
+    #Load parameters
     lat_kde,lat_lan,p_bad, mode = params
     buf, a_lat, a_buf, a_acc = variables
     
-#CONSTANTS
+    #CONSTANTS
     wp = 1000
 
+    #Which robot to simulate
     if mode == 'omx':
-        #OM-X
-        I_recv = 10
-        d = 0.05
-        V_min = 0.05
-        V_max = 0.5
+        I_recv = 10 #ms
+        d = 0.05 #m
+        V_min = 0.05 #m/s
+        V_max = 0.5 #m/s
         bcrit = 5
 
     elif mode == 'tb3':
-        #TB3
         I_recv = 150 #ms
         d = 0.1 #m
         V_min = 0.1 #m/s
@@ -63,8 +61,10 @@ def obj_funct(variables, *params, sim = False):
         print("INVALID MODE")
         sys.exit()
         
-    
+    #Set trajectory - A constant maximum Speed
     V_ow = V_max
+    #Initialise V_cw
+    V_cw = V_ow
     
     #Network Conditions
     L_list = [10,50,100,300]
@@ -73,15 +73,17 @@ def obj_funct(variables, *params, sim = False):
     Lmax = 500
 
     #Loss rate
-    pRate = 0.05
+    pRate = 0.05 #initial loss rate as observed from testing
     p_bad[0] = pRate
     
     #Initialise lists
-    #aggregate costs
+    
+    #Cost Aggregates
     Z_Speed = [] #convert to ms scale
     Z_Smooth = []  # convert to ms scale
     Z_Wait = []
     Z_Count = []
+    #Charting
     vel_ilist = []
     vel_clist = []
     acc_ilist = []
@@ -89,46 +91,39 @@ def obj_funct(variables, *params, sim = False):
     time_list = []
     time_vel = []
     time_vow = []
-    rt_store = []
-    
-    first = True
-    
+    #Retransmission Lists
+    rt_store = [] #for retaining
     rt_list = [0]*wp
+    #oneshot
+    first = True
     #Ploss status array
     pLoss = [0,1]
-    #Initialise V_cw
-    V_cw = V_ow
+    
+    
+    ### MAIN OBJECTIVE FUNCTION ###
     
     #Loop for multiple latencies
     for Lavg in L_list:
+        #grace time for retransmission
         tgrace = 0
         
         #Initialise circular buffer for latency smoothing
         lat_hist = collections.deque(maxlen=30)
         I_hist = collections.deque(maxlen = int(buf-bcrit))
     
-        #band-aid for training
+        #default latency for training
         if not sim:
             Lavg = L_default
 
         #I_snd history
         I_hist = []
-
-        #List of costs within tests
-        zspeed = [0]*wp
-        zsmooth = [0]*wp
-        zwait = [0]*wp
-        zcount = [0]*wp
         
         speed_cost = 0
         smooth_cost = 0
+        wait_cost = 0
+        count_cost = 0
 
-        #Simulation results
-        t_oper = [0]*wp
-        t_ideal = [0]*wp
-        t_stop = [0]*wp
-        
-        #Initialising Velocity and Acceleration Charts vs distance
+        #Initialising Speed and Acceleration Charts vs distance
         if sim:
             vel_ideal = [0]*wp
             vel_comp = [0]*wp
@@ -140,51 +135,30 @@ def obj_funct(variables, *params, sim = False):
         mList = [0]
         success = False
         
-        #Time simulation
+        #Time simulation initialisation
         vel_toriginal = [V_ow]
         vel = [0]
         time = [0]
         time_run = []
         
-        wait_cost = 0
-        count_cost = 0
-        
-        #Velocity Profile Setup
-        vel_profile = [V_max]
-        vel_start = [0]
-        
+        ### RETRANSMISSION LIST GENERATION ###
 
         #Fill rt_list, keeping the same network pattern for all latencies
         if first:
-            # for n in range(0,wp):
-            #     #Sample initial packet loss 
-            #     rt_count = 0
-                
-            #     while True: #Retransmit until successful
-            #         if(rt_count < len(p_bad)):
-            #             pRate = p_bad[rt_count]
-            #         else:
-            #             pRate = 0
-            #         pL = np.random.choice(pLoss,p=[1-pRate,pRate])
-            #         if pL > 0:
-            #             rt_count += 1
-            #         else:
-            #             break
-            
-            #     rt_list[n] = rt_count
-            
-            ############### batch
+            #temporal step size
             jmp_ind = int(I_recv/5)
-            rt_prev = 0
             rt_count = 0
+            #loop through all waypoints by feeding into mList
             while len(mList) > 0:
                 try:
-                    if rt_prev >= len(p_bad) or rt_count >= len(p_bad):
-                        pRate = 0
+                    #Out of range, default to initial state
+                    if rt_count >= len(p_bad):
+                        pRate = p_bad[0]
                     else:
-                        pRate = reduce((lambda x, y: x*y),p_bad[rt_prev:rt_count+1])
+                        #assign pRate
+                        pRate = p_bad[rt_count]
                 except:
-                    pRate = 0
+                    pRate = p_bad[0]
                 if np.random.choice(pLoss,p=[1-pRate,pRate]) > 0:
                     for packet in mList:
                         #Test for packet failure
@@ -195,12 +169,12 @@ def obj_funct(variables, *params, sim = False):
                 mList = [value for value in mList if value != -1]
                 if success:
                     rt_count = 0
-                    rt_prev = 0
                     mList = []
                 else:
-                    rt_prev = rt_count+1
-                    rt_count += jmp_ind #Markov transition interval
-                
+                    #traverse markov chain
+                    rt_count += 1 #Markov transition interval
+                    for i in range(0,jmp_ind-1):
+                        rt_count = rt_count+1 if np.random.choice(pLoss,p=[1-p_bad[rt_count],p_bad[rt_count]]) > 0 else 0
                 mCount += 1
                 
                 if mCount < wp:
@@ -215,6 +189,8 @@ def obj_funct(variables, *params, sim = False):
             rt_list = rt_store.copy()
 
 
+        ### LATENCY SAMPLING AND SPEED SCALING PER WAYPOINT ###
+        
         #For each waypoint
         for n in range(0,wp):
             #Sample latency offset
@@ -222,6 +198,7 @@ def obj_funct(variables, *params, sim = False):
             LANoff = lat_lan.sample(1)[0][0]
             Lsum = (Loff + Lavg + LANoff + LANavg)
             lat_hist.append(Lsum)
+            #Smoothing using moving average filter
             Lsmoothed = sum(lat_hist)/float(len(lat_hist))
 
             b_loss = 0
@@ -238,10 +215,10 @@ def obj_funct(variables, *params, sim = False):
             #Calcualte Scaling Factor
             klat = a_lat*(1-((Lmax-Lsmoothed)/Lmax))
 
-            #store previous
+            #store previous speed
             V_prev = V_cw
 
-            #Scale Velocity - QUADRATIC
+            #Scale Speed - QUADRATIC
             V_cw = ((V_ow-(V_ow*klat))/(-1*(buf)**2))*((a_buf*b_loss)**2-buf**2)
             #Linear limiter on upwards acceleration
             V_cw = min(V_prev + V_max*a_acc,V_cw)
@@ -251,8 +228,9 @@ def obj_funct(variables, *params, sim = False):
             I_snd = I_recv*(V_ow/V_cw)
             I_hist.append(I_snd)
             
-                      
-            #TIME SIMULATION
+            
+            ### RUNNING TIME AND WAITING TIME SIMULATION ###
+            
             #obtain execution timestamp            
             if n == 0:
                 #Express wait time while filling initial buffer to b_oper
@@ -307,29 +285,19 @@ def obj_funct(variables, *params, sim = False):
                         smooth_cost += abs(( V_ow - list(reversed(vel))[1] ) - ( V_ow - list(reversed(vel))[0] ))
                     else:
                         speed_cost += ( V_ow - list(reversed(vel))[0] ) * list(reversed(time))[0]
-                        smooth_cost += 0
                 
                 #decay the grace time
                 tgrace = max(0, tgrace - I_snd)
                 vel.append(V_cw)
                 vel_toriginal.append(V_ow)
-                time.append(time_run[n]) 
+                time.append(time_run[n])
                 #increment costs for running
                 if(len(time) > 1):
                     speed_cost += ( V_ow - list(reversed(vel))[0] ) * ( list(reversed(time))[0] - list(reversed(time))[1] )
                     smooth_cost += abs(( V_ow - list(reversed(vel))[1] ) - ( V_ow - list(reversed(vel))[0] ))
                 else:
                     speed_cost += ( V_ow - list(reversed(vel))[0] ) * list(reversed(time))[0]
-                    smooth_cost += ( V_ow - list(reversed(vel))[0] )
 
-            #Calculate error
-            zspeed[n] = abs(V_ow - V_cw)
-            
-            #Calculate Simulation Results
-            t_ideal[n] = d/V_ow*1000
-            t_oper[n] = d/V_cw*1000
-            t_stop[n] = zwait[n]
-            
             #Store value for charts
             if sim:
                 vel_ideal[n] = V_ow
@@ -357,9 +325,9 @@ def obj_funct(variables, *params, sim = False):
         else:
             break
         
-    if sim:
+    if sim: #for visualisation
         return([Z_Speed,Z_Smooth,Z_Wait,Z_Count,vel_ilist, vel_clist, acc_ilist, acc_clist, time_list, time_vel, time_vow, rt_store])
-    else:
+    else: #for training
         return([Z_Speed,Z_Smooth,Z_Wait,Z_Count])
 
 ### MAIN FUNCTION ###
