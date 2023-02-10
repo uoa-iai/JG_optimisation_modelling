@@ -190,7 +190,7 @@ def obj_funct(variables, *params, sim = False):
 
 
         ### LATENCY SAMPLING AND SPEED SCALING PER WAYPOINT ###
-        
+
         #For each waypoint
         for n in range(0,wp):
             #Sample latency offset
@@ -227,7 +227,6 @@ def obj_funct(variables, *params, sim = False):
             #Calculate the new consumption period - ms
             I_snd = I_recv*(V_ow/V_cw)
             I_hist.append(I_snd)
-            
             
             ### RUNNING TIME AND WAITING TIME SIMULATION ###
             

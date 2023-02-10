@@ -83,8 +83,6 @@ class MixedVarsInit(ElementwiseProblem):
         res.append(obj_wrapper(designs, *params))
         out['F'] = np.array(res)
         
-        
-        
 
 #GA Settings
 p_size = 200
@@ -106,6 +104,7 @@ results = minimize(
     callback=MyCallback(),
     verbose=True
 )
+
 print(" POP: "+str(p_size)+"   "+str(g_size)+" Generations")
 print("         FINISHED           ")
 print(results.F)
