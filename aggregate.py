@@ -20,7 +20,7 @@ print('\n\nWAN TCP FILES\n')
 loss_sum = 0
 loss_count = 0
 
-#DETERMINE MARKOV CHAIN PROBABILITIES
+# DETERMINE MARKOV CHAIN PROBABILITIES
 
 #List of integers counting the number of consecutive packet losses before the encountered instance 
 #i.e. index 0 is the number of "first" packet losses, index 1 is the number of "second consecutive losses"

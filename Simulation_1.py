@@ -44,15 +44,15 @@ class Timer:
 if __name__ == "__main__":
     
     #Load PDF for latency
-    kdefile = open('kdePickle','rb')
+    kdefile = open('./Pickles/kdePickle','rb')
     lat_kde = pickle.load(kdefile)
     kdefile.close()
 
-    lanfile = open('LAN_Pickle','rb')
+    lanfile = open('./Pickles/LAN_Pickle','rb')
     lat_lan = pickle.load(lanfile)
     lanfile.close()
 
-    pbadFile = open('pbadPickle','rb')
+    pbadFile = open('./Pickles/pbadPickle','rb')
     p_bad = pickle.load(pbadFile)
     pbadFile.close()
 
@@ -67,15 +67,15 @@ if __name__ == "__main__":
     fact_max = 1
     
     #MODE SELECT
-    sim_num = 1
-    mode = 'tb3' #omx or tb3
+    sim_num = 10000
+    mode = 'omx' #omx or tb3
     
     if mode == 'omx':
-        #Optimised using NSGA2 with aggregation - OM-X
-        buf = 97
-        a_lat = 0.15391271428130127
-        a_buf =  0.16180063274683415
-        a_acc = 0.7511231674097997
+        #Optimised using NSGA2 with aggregation - OM-X        
+        buf = 126
+        a_lat = 0.779001524842345
+        a_buf = 0.12525509424920095
+        a_acc = 0.8955133250442148
     
     if mode == 'tb3':
         #TB3 - Quadratic Smoothing
@@ -84,7 +84,7 @@ if __name__ == "__main__":
         a_buf = 0.011781929313469802
         a_acc = 0.2810546088039789
 
-    params = (lat_kde,lat_lan,p_bad,mode)
+    params = (lat_kde,lat_lan,p_bad,mode, wp)
     variables = np.array([buf, a_lat, a_buf, a_acc])
     
     speed_list = []

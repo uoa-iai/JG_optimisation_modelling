@@ -25,30 +25,30 @@ from pymoo.util.display.output import Output
 
 #read files
 #Load PDF for latency
-kdefile = open('kdePickle','rb')
+kdefile = open('./Pickles/kdePickle','rb')
 lat_kde = pickle.load(kdefile)
 kdefile.close()
 
-lanfile = open('LAN_Pickle','rb')
+lanfile = open('./Pickles/LAN_Pickle','rb')
 lat_lan = pickle.load(lanfile)
 lanfile.close()
 
-pbadFile = open('pbadPickle','rb')
+pbadFile = open('./Pickles/pbadPickle','rb')
 p_bad = pickle.load(pbadFile)
 pbadFile.close()
 
 #MODE SELECTION - omx OR tb3
-mode = 'omx'
-
-params = (lat_kde,lat_lan,p_bad,mode)
+mode = 'tb3'
 
 #CONSTRAINTS
 bcrit = 5
 wp = 1000
 buf_min = bcrit+1
-buf_max = round(wp/10)
+buf_max = round(wp/3)
 fact_min = 0
 fact_max = 1
+
+params = (lat_kde,lat_lan,p_bad,mode, wp)
 
 class MyCallback(Callback):
 
@@ -111,11 +111,11 @@ print(results.F)
 print("             INPUTS        ")
 print(results.X)
 
-costFile = open('nsga_cost','wb')
+costFile = open(f'{mode}nsga_cost','wb')
 pickle.dump(results.F,costFile)
 costFile.close()
 
-inputFile = open('nsga_input','wb')
+inputFile = open(f'{mode}nsga_input','wb')
 pickle.dump(results.X,inputFile)
 inputFile.close()
 

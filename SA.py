@@ -11,15 +11,15 @@ def obj_wrapper(variables, *params):
     """This function is for use with the NSGA-II algorithm it loads parameters and runs the simulation 5 times, aggregating the results"""
     
     #Load parameters
-    lat_kde,lat_lan,p_bad = params
+    lat_kde, lat_lan, p_bad, mode, wp = params
     buf, a_lat, a_buf, a_acc = variables
     buf = round(buf)
     
     var = np.array([buf, a_lat, a_buf, a_acc])
-    par = (lat_kde,lat_lan,p_bad)
+    par = (lat_kde, lat_lan, p_bad, mode, wp)
     
     #Run simulation 5 times, aggregating the results
-    i_count = 5
+    i_count = 15
     i_sum = [0,0,0,0]
     for i in range(0,i_count): 
         res = obj_funct(var, *par) #run the objective function
@@ -36,11 +36,8 @@ def obj_funct(variables, *params, sim = False):
     ### INITIALISATION ###
     
     #Load parameters
-    lat_kde,lat_lan,p_bad, mode = params
+    lat_kde,lat_lan,p_bad, mode, wp = params
     buf, a_lat, a_buf, a_acc = variables
-    
-    #CONSTANTS
-    wp = 1000
 
     #Which robot to simulate
     if mode == 'omx':
@@ -63,6 +60,8 @@ def obj_funct(variables, *params, sim = False):
         
     #Set trajectory - A constant maximum Speed
     V_ow = V_max
+    #Calculate theoretically optimal time
+    t_ideal = I_recv*wp
     #Initialise V_cw
     V_cw = V_ow
     
@@ -114,9 +113,6 @@ def obj_funct(variables, *params, sim = False):
         #default latency for training
         if not sim:
             Lavg = L_default
-
-        #I_snd history
-        I_hist = []
         
         speed_cost = 0
         smooth_cost = 0
@@ -173,8 +169,11 @@ def obj_funct(variables, *params, sim = False):
                 else:
                     #traverse markov chain
                     rt_count += 1 #Markov transition interval
-                    for i in range(0,jmp_ind-1):
-                        rt_count = rt_count+1 if np.random.choice(pLoss,p=[1-p_bad[rt_count],p_bad[rt_count]]) > 0 else 0
+                    try:
+                        for i in range(0,jmp_ind-1):
+                            rt_count = rt_count+1 if np.random.choice(pLoss,p=[1-p_bad[rt_count],p_bad[rt_count]]) > 0 else 0
+                    except IndexError:
+                        rt_count = 0
                 mCount += 1
                 
                 if mCount < wp:
@@ -212,7 +211,7 @@ def obj_funct(variables, *params, sim = False):
                 b_iter += 1
 
 
-            #Calcualte Scaling Factor
+            #Calculate Scaling Factor
             klat = a_lat*(1-((Lmax-Lsmoothed)/Lmax))
 
             #store previous speed
@@ -307,8 +306,12 @@ def obj_funct(variables, *params, sim = False):
                 else:
                     acc_ideal[n] = V_ow
                     acc_comp[n] = V_cw
-
+                    
         #aggregate costs
+        #Final times for speed cost
+        speed_cost = abs(time[-1]-t_ideal)
+        # print(speed_cost)
+        
         Z_Speed.append(speed_cost) #convert to ms scale
         Z_Smooth.append(smooth_cost) # convert to ms scale
         Z_Wait.append(wait_cost)
