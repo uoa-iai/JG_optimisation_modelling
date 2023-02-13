@@ -25,7 +25,7 @@ from pymoo.util.display.output import Output
 
 #read files
 #Load PDF for latency
-kdefile = open('./Pickles/kdePickle','rb')
+kdefile = open('./SYD_LDN_LAT_KDE','rb')
 lat_kde = pickle.load(kdefile)
 kdefile.close()
 
@@ -33,12 +33,16 @@ lanfile = open('./Pickles/LAN_Pickle','rb')
 lat_lan = pickle.load(lanfile)
 lanfile.close()
 
-pbadFile = open('./Pickles/pbadPickle','rb')
+pbadFile = open('./SYD_LDN_ConLoss_pbad','rb')
 p_bad = pickle.load(pbadFile)
 pbadFile.close()
 
+pbadFile = open('./LAN_ConLoss_pbad','rb')
+p_bad_lan = pickle.load(pbadFile)
+pbadFile.close()
+
 #MODE SELECTION - omx OR tb3
-mode = 'tb3'
+mode = 'omx'
 
 #CONSTRAINTS
 bcrit = 5
@@ -48,7 +52,7 @@ buf_max = round(wp/3)
 fact_min = 0
 fact_max = 1
 
-params = (lat_kde,lat_lan,p_bad,mode, wp)
+params = (lat_kde,lat_lan,p_bad, p_bad_lan, mode, wp)
 
 class MyCallback(Callback):
 

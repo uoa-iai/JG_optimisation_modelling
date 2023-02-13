@@ -11,12 +11,12 @@ def obj_wrapper(variables, *params):
     """This function is for use with the NSGA-II algorithm it loads parameters and runs the simulation 5 times, aggregating the results"""
     
     #Load parameters
-    lat_kde, lat_lan, p_bad, mode, wp = params
+    lat_kde, lat_lan, p_bad, p_bad_lan, mode, wp = params
     buf, a_lat, a_buf, a_acc = variables
     buf = round(buf)
     
     var = np.array([buf, a_lat, a_buf, a_acc])
-    par = (lat_kde, lat_lan, p_bad, mode, wp)
+    par = (lat_kde, lat_lan, p_bad, p_bad_lan, mode, wp)
     
     #Run simulation 5 times, aggregating the results
     i_count = 15
@@ -36,7 +36,7 @@ def obj_funct(variables, *params, sim = False):
     ### INITIALISATION ###
     
     #Load parameters
-    lat_kde,lat_lan,p_bad, mode, wp = params
+    lat_kde,lat_lan,p_bad, p_bad_lan, mode, wp = params
     buf, a_lat, a_buf, a_acc = variables
 
     #Which robot to simulate
@@ -71,7 +71,6 @@ def obj_funct(variables, *params, sim = False):
     LANavg = 8
     Lmax = 500
 
-    #Loss rate
     pRate = 0.05 #initial loss rate as observed from testing
     p_bad[0] = pRate
     
@@ -139,46 +138,58 @@ def obj_funct(variables, *params, sim = False):
         
         ### RETRANSMISSION LIST GENERATION ###
 
-        #Fill rt_list, keeping the same network pattern for all latencies
+        # Fill rt_list, keeping the same network pattern for all latencies
         if first:
             #temporal step size
             jmp_ind = int(I_recv/5)
             rt_count = 0
+            rt_lan = 0
             #loop through all waypoints by feeding into mList
             while len(mList) > 0:
-                try:
-                    #Out of range, default to initial state
-                    if rt_count >= len(p_bad):
-                        pRate = p_bad[0]
-                    else:
-                        #assign pRate
-                        pRate = p_bad[rt_count]
-                except:
-                    pRate = p_bad[0]
+                #Assign Loss Rates Based On Markov Chain
+                pRate = p_bad[rt_count]
+                pRate_lan = p_bad_lan[rt_lan]
+                #Test WAN network
                 if np.random.choice(pLoss,p=[1-pRate,pRate]) > 0:
                     for packet in mList:
-                        #Test for packet failure
+                        #WAN PACKET FAILURE
                         rt_list[packet] += 1
-                else:
-                    success = True
+                        #traverse markov chain
+                        try:
+                            for i in range(0,jmp_ind):
+                                if i == 0:
+                                    rt_count += 1 #Markov transition interval
+                                else: 
+                                    rt_count = rt_count+1 if np.random.choice(pLoss,p=[1-p_bad[rt_count],p_bad[rt_count]]) > 0 else 0
+                                #Advance time for the lan network 
+                                rt_lan = rt_lan + 1 if np.random.choice(pLoss,p=[1-p_bad_lan[rt_lan],p_bad_lan[rt_lan]]) > 0 else 0
+                        except IndexError:
+                            rt_count = 0
+                else: #WAN Success - Test LAN
+                    rt_count = 0 #Recover WAN Network
+                    if np.random.choice(pLoss,p=[1-p_bad_lan[rt_lan],p_bad_lan[rt_lan]]) > 0:
+                        for packet in mList:
+                            #LAN PACKET FAILURE
+                            rt_list[packet] += 1
+                            #Traverse Markov chain
+                            try:
+                                for i in range(0,jmp_ind):
+                                    if i == 0:
+                                        rt_lan += 1 #Markov transition interval
+                                    else: 
+                                        rt_lan = rt_lan + 1 if np.random.choice(pLoss,p=[1-p_bad_lan[rt_lan],p_bad_lan[rt_lan]]) > 0 else 0
+                            except IndexError:
+                                rt_lan = 0
+                    else:#Successful transmission
+                        #recover LAN network
+                        rt_lan = 0
+                        mList = []
                             
                 mList = [value for value in mList if value != -1]
-                if success:
-                    rt_count = 0
-                    mList = []
-                else:
-                    #traverse markov chain
-                    rt_count += 1 #Markov transition interval
-                    try:
-                        for i in range(0,jmp_ind-1):
-                            rt_count = rt_count+1 if np.random.choice(pLoss,p=[1-p_bad[rt_count],p_bad[rt_count]]) > 0 else 0
-                    except IndexError:
-                        rt_count = 0
                 mCount += 1
                 
                 if mCount < wp:
                     mList.append(mCount)
-                    success = False
             ####### end batch
             #backup for other latencies
             rt_store = rt_list.copy()

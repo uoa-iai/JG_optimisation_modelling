@@ -15,7 +15,7 @@ def plotMProb(pbad,fname):
 
 if __name__ == "__main__":
     dirname = os.path.dirname(__file__)
-    filetype='*ConLoss'
+    filetype='LAN_ConLoss'
     dirroot = os.path.abspath(os.path.join(dirname,'..'))
     dirs = os.path.abspath(os.path.join(dirname,'..',filetype))
     

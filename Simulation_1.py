@@ -44,7 +44,7 @@ class Timer:
 if __name__ == "__main__":
     
     #Load PDF for latency
-    kdefile = open('./Pickles/kdePickle','rb')
+    kdefile = open('./SYD_LDN_LAT_KDE','rb')
     lat_kde = pickle.load(kdefile)
     kdefile.close()
 
@@ -52,10 +52,13 @@ if __name__ == "__main__":
     lat_lan = pickle.load(lanfile)
     lanfile.close()
 
-    pbadFile = open('./Pickles/pbadPickle','rb')
+    pbadFile = open('./SYD_LDN_ConLoss_pbad','rb')
     p_bad = pickle.load(pbadFile)
     pbadFile.close()
 
+    pbadFile = open('./LAN_ConLoss_pbad','rb')
+    p_bad_lan = pickle.load(pbadFile)
+    pbadFile.close()
 
 
     #CONSTRAINTS
@@ -67,7 +70,7 @@ if __name__ == "__main__":
     fact_max = 1
     
     #MODE SELECT
-    sim_num = 10000
+    sim_num = 1
     mode = 'omx' #omx or tb3
     
     if mode == 'omx':
@@ -84,7 +87,7 @@ if __name__ == "__main__":
         a_buf = 0.011781929313469802
         a_acc = 0.2810546088039789
 
-    params = (lat_kde,lat_lan,p_bad,mode, wp)
+    params = (lat_kde,lat_lan,p_bad,p_bad_lan,mode, wp)
     variables = np.array([buf, a_lat, a_buf, a_acc])
     
     speed_list = []
@@ -216,7 +219,7 @@ if __name__ == "__main__":
         else:
             ax.plot(ind,item,label=str(lat_val[iter - 1])+" ms")
         iter += 1
-            
+    
     ax.legend(loc="upper right")
     plt.show()
     
