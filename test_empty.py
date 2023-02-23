@@ -5,12 +5,15 @@ import matplotlib.pyplot as plt
 
 #Script to process the consecutive loss pickle into transition probabilities
 
-fname = ''
+pbadFile = open('./SYD_LDN_ConLoss_pbad','rb')
+p_bad = pickle.load(pbadFile)
+pbadFile.close()
 
-pbad = open(f'{fname}_pbad','wb')
-fig,ax = plt.subplots()
-indices = range(len(pbad))
+print(p_bad[0:10])
+print(p_bad[0:-5])
 
-ax.bar(indices,pbad)
-ax.set(xlabel='Consecutive packet losses', ylabel='Probability', title=f'Markov Probabilities in {fname[0:fname.rfind("_")]}')
-plt.savefig(f'{fname}.png', bbox_inches='tight')
+pbadFile = open('./LAN_ConLoss_pbad','rb')
+p_bad_lan = pickle.load(pbadFile)
+pbadFile.close()
+
+print(p_bad_lan[0:10])

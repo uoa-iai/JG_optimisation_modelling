@@ -147,8 +147,10 @@ def obj_funct(variables, *params, sim = False):
             #loop through all waypoints by feeding into mList
             while len(mList) > 0:
                 #Assign Loss Rates Based On Markov Chain
-                pRate = p_bad[rt_count]
-                pRate_lan = p_bad_lan[rt_lan]
+                try:
+                    pRate = p_bad[rt_count]
+                except IndexError:
+                    rt_count = 0
                 #Test WAN network
                 if np.random.choice(pLoss,p=[1-pRate,pRate]) > 0:
                     for packet in mList:
@@ -162,7 +164,7 @@ def obj_funct(variables, *params, sim = False):
                                 else: 
                                     rt_count = rt_count+1 if np.random.choice(pLoss,p=[1-p_bad[rt_count],p_bad[rt_count]]) > 0 else 0
                                 #Advance time for the lan network 
-                                rt_lan = rt_lan + 1 if np.random.choice(pLoss,p=[1-p_bad_lan[rt_lan],p_bad_lan[rt_lan]]) > 0 else 0
+                                rt_lan = rt_lan + 1 if np.random.choice(pLoss,p=[1-p_bad_lan[rt_lan],p_bad_lan[rt_lan]]) > 0 and rt_lan + 1 < len(p_bad_lan) else 0
                         except IndexError:
                             rt_count = 0
                 else: #WAN Success - Test LAN
@@ -178,6 +180,7 @@ def obj_funct(variables, *params, sim = False):
                                         rt_lan += 1 #Markov transition interval
                                     else: 
                                         rt_lan = rt_lan + 1 if np.random.choice(pLoss,p=[1-p_bad_lan[rt_lan],p_bad_lan[rt_lan]]) > 0 else 0
+                                    rt_lan = rt_lan if rt_lan < len(p_bad_lan) else 0
                             except IndexError:
                                 rt_lan = 0
                     else:#Successful transmission

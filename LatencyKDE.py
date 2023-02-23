@@ -6,6 +6,7 @@ import os
 import glob
 import matplotlib.pyplot as plt
 import pickle
+from sklearn.model_selection import GridSearchCV
 
 from scipy import stats
 
@@ -82,6 +83,8 @@ for dir in dirs:
         temp = 1500
         #TEMP FIND THE DESIRED REGION
         if fpath.find("SYD_LDN") < 0 and fpath.find("LAN") < 0 :
+            pass
+        else:
             continue
         
         #init stack
@@ -145,19 +148,27 @@ for dir in dirs:
         
         #generate kde
         lat_reshape = lat_stack.reshape(-1, 1)
+        
+        #use cross validation to determine bandwidth
+        # grid = GridSearchCV(KernelDensity(), {"bandwidth": np.linspace(0.1,1.0,30)}, cv=20)
+        # grid.fit(lat_reshape)
+        # bw = grid.best_estimator_.bandwidth
+        
+        print(f"Fitting {label}")
+        
         lat_k2 = KernelDensity(kernel = 'gaussian',bandwidth=0.17).fit(lat_reshape)
         
         print(f"Saving {label}")
         
-        #TEMP PLOTTING
-        y1 = lat_k2.sample(100000)
+        # #TEMP PLOTTING
+        # y1 = lat_k2.sample(100000)
         
-        #plot
-        fig, ax = plt.subplots()
-        ax.hist(lat_reshape, density = True, bins = 50, color='blue', label='raw')
-        ax2=ax.twinx()
-        ax2.hist(y1.ravel(), density = True, bins = 200, histtype=u'step', color='red', label='kde', linewidth=2)
-        plt.show()
+        # #plot
+        # fig, ax = plt.subplots()
+        # ax.hist(lat_reshape, density = True, bins = 50, color='blue', label='raw')
+        # ax2=ax.twinx()
+        # ax2.hist(y1.ravel(), density = True, bins = 200, histtype=u'step', color='red', label='kde', linewidth=2)
+        # plt.show()
         
         
         #Store the data
